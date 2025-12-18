@@ -117,11 +117,20 @@
     if (!props.dragPainting || !isDragging.value || !dragMode.value) return;
 
     e.preventDefault();
-    console.log('Drag painting:', r, c, dragMode.value);
 
     // Paint the current cell if we've moved to a different cell
     if (!dragStartCell.value || r !== dragStartCell.value.r || c !== dragStartCell.value.c) {
-      emit('cell', r, c, dragMode.value);
+      // Check if we should paint this cell
+      const currentCellState = props.player[r][c];
+      const shouldPaint = dragMode.value === 'erase' || currentCellState === 'empty';
+
+      if (shouldPaint) {
+        console.log('Drag painting:', r, c, dragMode.value);
+        emit('cell', r, c, dragMode.value);
+      } else {
+        console.log('Skipping filled cell:', r, c, 'current state:', currentCellState);
+      }
+
       dragStartCell.value = { r, c };
     }
   }
