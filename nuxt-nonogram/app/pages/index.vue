@@ -9,6 +9,8 @@
 
   const showMistakes = ref(true);
   const checkPulse = ref(false);
+  const autoX = ref(true);
+  const greyCompletedHints = ref(true);
 
   function checkAll() {
     checkPulse.value = true;
@@ -68,15 +70,16 @@
 
 <template>
   <div class="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
-    <div class="max-w-6xl w-full mx-auto p-6 flex-1">
-      <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8">
-        <div class="space-y-1">
-          <h1 class="text-3xl font-bold">Archipelago Nonogram</h1>
-          <p class="text-sm text-neutral-400">Interactive puzzle game with multiplayer support</p>
-        </div>
-      </header>
+    <div class="flex flex-1">
+      <!-- Main content area -->
+      <div class="flex-1 max-w-6xl mx-auto p-6">
+        <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8">
+          <div class="space-y-1">
+            <h1 class="text-3xl font-bold">Archipelago Nonogram</h1>
+            <p class="text-sm text-neutral-400">Interactive puzzle game with multiplayer support</p>
+          </div>
+        </header>
 
-      <div class="grid gap-6 lg:grid-cols-[1fr_360px] items-start">
         <!-- LEFT: board -->
         <div class="glass-card p-6 animate-fade-in">
           <NonogramBoard
@@ -87,6 +90,8 @@
             :player="player"
             :solution="solution"
             :show-mistakes="showMistakes || checkPulse"
+            :auto-x="autoX"
+            :grey-completed-hints="greyCompletedHints"
             @cell="cycleCell"
           />
 
@@ -103,19 +108,21 @@
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- RIGHT: tabs -->
-        <div class="glass-panel rounded-sm overflow-hidden animate-fade-in">
-          <!-- tab bar -->
-          <div class="flex border-b border-neutral-700/50">
-            <button class="tab-button" :class="{ active: activeTab === 'archipelago' }" @click="activeTab = 'archipelago'">Archipelago</button>
-            <button class="tab-button" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">Settings</button>
-            <button class="tab-button" :class="{ active: activeTab === 'chat' }" @click="activeTab = 'chat'">Chat</button>
-            <button class="tab-button" :class="{ active: activeTab === 'shop' }" @click="activeTab = 'shop'">Shop</button>
-          </div>
+      <!-- RIGHT: sidebar attached to right side -->
+      <div class="w-96 bg-neutral-900/95 backdrop-blur-lg border-l border-neutral-700 flex flex-col min-h-screen animate-fade-in"
+           style="box-shadow: -8px 0 32px rgba(0, 0, 0, 0.3);">
+        <!-- tab bar -->
+        <div class="flex border-b border-neutral-700/50">
+          <button class="tab-button" :class="{ active: activeTab === 'archipelago' }" @click="activeTab = 'archipelago'">Archipelago</button>
+          <button class="tab-button" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">Settings</button>
+          <button class="tab-button" :class="{ active: activeTab === 'chat' }" @click="activeTab = 'chat'">Chat</button>
+          <button class="tab-button" :class="{ active: activeTab === 'shop' }" @click="activeTab = 'shop'">Shop</button>
+        </div>
 
-          <!-- tab content -->
-          <div class="p-6">
+        <!-- tab content -->
+        <div class="p-6 flex-1 overflow-auto">
             <!-- SETTINGS -->
             <div v-if="activeTab === 'settings'" class="space-y-6">
               <div class="flex items-center gap-3 mb-6">
@@ -133,6 +140,16 @@
                     <label class="flex items-center gap-3 cursor-pointer group">
                       <input type="checkbox" v-model="showMistakes" class="checkbox-field" />
                       <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Show mistakes in real-time</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" v-model="autoX" class="checkbox-field" />
+                      <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Auto-X completed rows/columns</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" v-model="greyCompletedHints" class="checkbox-field" />
+                      <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Grey out completed hints</span>
                     </label>
 
                     <div>
@@ -305,7 +322,6 @@
           </div>
         </div>
       </div>
-    </div>
 
     <!-- Bottom status bar -->
     <footer class="border-t border-neutral-700/50 bg-neutral-950/90 backdrop-blur-lg">

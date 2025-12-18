@@ -9,6 +9,8 @@
     player: Mark[][];
     solution?: Cell[][];
     showMistakes?: boolean;
+    autoX?: boolean;
+    greyCompletedHints?: boolean;
   }>();
 
   const emit = defineEmits<{
@@ -58,6 +60,80 @@
     if (!props.showMistakes || !props.solution) return false;
     return props.player[r][c] === 'x' && props.solution[r][c] === 1;
   }
+
+  function isRowComplete(r: number): boolean {
+    if (!props.solution) return false;
+    // Count filled cells in this row in both player and solution
+    let solutionFills = 0;
+    let playerFills = 0;
+
+    for (let c = 0; c < props.cols; c++) {
+      if (props.solution[r][c] === 1) solutionFills++;
+      if (props.player[r][c] === 'fill') playerFills++;
+    }
+
+    return playerFills === solutionFills && playerFills > 0;
+  }
+
+  function isColComplete(c: number): boolean {
+    if (!props.solution) return false;
+    // Count filled cells in this column in both player and solution
+    let solutionFills = 0;
+    let playerFills = 0;
+
+    for (let r = 0; r < props.rows; r++) {
+      if (props.solution[r][c] === 1) solutionFills++;
+      if (props.player[r][c] === 'fill') playerFills++;
+    }
+
+    return playerFills === solutionFills && playerFills > 0;
+  }
+
+  function shouldAutoX(r: number, c: number): boolean {
+    if (!props.autoX) return false;
+    if (props.player[r][c] !== 'empty') return false;
+    if (!props.solution) return false;
+
+    // Don't auto-X if this cell should be filled
+    if (props.solution[r][c] === 1) return false;
+
+    // Auto-X if either the row or column is complete
+    return isRowComplete(r) || isColComplete(c);
+  }
+
+  function isRowPatternComplete(r: number): boolean {
+    if (!props.solution) return false;
+
+    // Get the actual pattern from player
+    const playerRow = props.player[r];
+    const solutionRow = props.solution[r];
+
+    // Check if all required fills are present and no wrong fills
+    for (let c = 0; c < props.cols; c++) {
+      const shouldBeFilled = solutionRow[c] === 1;
+      const playerFilled = playerRow[c] === 'fill';
+
+      if (shouldBeFilled && !playerFilled) return false; // Missing required fill
+      if (!shouldBeFilled && playerFilled) return false; // Wrong fill
+    }
+
+    return true;
+  }
+
+  function isColPatternComplete(c: number): boolean {
+    if (!props.solution) return false;
+
+    // Check if all required fills are present and no wrong fills
+    for (let r = 0; r < props.rows; r++) {
+      const shouldBeFilled = props.solution[r][c] === 1;
+      const playerFilled = props.player[r][c] === 'fill';
+
+      if (shouldBeFilled && !playerFilled) return false; // Missing required fill
+      if (!shouldBeFilled && playerFilled) return false; // Wrong fill
+    }
+
+    return true;
+  }
 </script>
 
 <template>
@@ -88,10 +164,24 @@
             gridTemplateRows: `repeat(${colDepth}, calc(var(--cell) * 0.45))`,
           }"
         >
-          <template v-for="c in cols" :key="`col-${c}`">
-            <div v-for="i in colDepth" :key="`col-${c}-r-${i}`" class="flex items-end justify-center text-[11px] text-neutral-300 leading-none">
+          <template v-for="i in colDepth" :key="`row-${i}`">
+            <div
+              v-for="c in cols"
+              :key="`col-${c}-r-${i}`"
+              class="flex items-end justify-center text-[11px] leading-none"
+              :class="props.greyCompletedHints && isColPatternComplete(c - 1) ? 'text-neutral-500' : 'text-neutral-300'"
+            >
               <!-- show from bottom -->
-              {{ colClues[c - 1][colClues[c - 1].length - (colDepth - i + 1)] ?? '' }}
+              {{
+                (() => {
+                  const clueArray = colClues[c - 1];
+                  const clueIndex = i - (colDepth - clueArray.length);
+                  if (clueIndex >= 0 && clueIndex < clueArray.length) {
+                    return clueArray[clueIndex];
+                  }
+                  return '';
+                })()
+              }}
             </div>
           </template>
         </div>
@@ -107,9 +197,23 @@
           }"
         >
           <template v-for="r in rows" :key="`row-${r}`">
-            <div v-for="i in rowDepth" :key="`row-${r}-c-${i}`" class="flex items-center justify-end pr-1 text-[11px] text-neutral-300 leading-none">
+            <div
+              v-for="i in rowDepth"
+              :key="`row-${r}-c-${i}`"
+              class="flex items-center justify-end pr-1 text-[11px] leading-none"
+              :class="props.greyCompletedHints && isRowPatternComplete(r - 1) ? 'text-neutral-500' : 'text-neutral-300'"
+            >
               <!-- show from right -->
-              {{ rowClues[r - 1][rowClues[r - 1].length - (rowDepth - i + 1)] ?? '' }}
+              {{
+                (() => {
+                  const clueArray = rowClues[r - 1];
+                  const clueIndex = i - (rowDepth - clueArray.length);
+                  if (clueIndex >= 0 && clueIndex < clueArray.length) {
+                    return clueArray[clueIndex];
+                  }
+                  return '';
+                })()
+              }}
             </div>
           </template>
         </div>
@@ -188,15 +292,34 @@
                     // selection: cell itself turns blue (even if empty)
                     sel ? 'bg-neutral-600/30' : '',
 
-                    // mistakes (optional)
+                    // mistakes (optional) - fill mistakes
                     isWrongFill(r, c) ? 'bg-red-500/25' : '',
-                    isWrongX(r, c) ? 'bg-orange-500/20' : '',
+
+                    // X mistakes get red background regardless of text color
+                    isWrongX(r, c) ? 'bg-red-500/25' : '',
+
+                    // auto-X styling
+                    shouldAutoX(r, c) ? 'bg-neutral-700/40' : '',
                   ];
                 })()
               "
               @pointerdown="(e) => onPointerDown(e as PointerEvent, Math.floor((idx - 1) / cols), (idx - 1) % cols)"
             >
-              <span v-if="player[Math.floor((idx - 1) / cols)][(idx - 1) % cols] === 'x'" class="text-sm opacity-70"> ✕ </span>
+              <span
+                v-if="player[Math.floor((idx - 1) / cols)][(idx - 1) % cols] === 'x' || shouldAutoX(Math.floor((idx - 1) / cols), (idx - 1) % cols)"
+                class="text-sm font-bold"
+                :class="
+                  (() => {
+                    const r = Math.floor((idx - 1) / cols);
+                    const c = (idx - 1) % cols;
+                    // Don't change text color for wrong X - background already handles it
+                    if (shouldAutoX(r, c)) return 'text-neutral-500';
+                    return 'text-neutral-400 opacity-70';
+                  })()
+                "
+              >
+                ✕
+              </span>
             </button>
           </div>
         </div>

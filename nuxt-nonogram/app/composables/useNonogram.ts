@@ -30,13 +30,19 @@ export function useNonogram() {
   }
 
   function cycleCell(r: number, c: number, mode: 'fill' | 'x' | 'erase') {
-    const cur = player.value[r][c];
+    // Create new array to trigger reactivity
+    const newPlayer = [...player.value.map((row) => [...row])];
+    const cur = newPlayer[r][c];
+
     if (mode === 'erase') {
-      player.value[r][c] = 'empty';
-      return;
+      newPlayer[r][c] = 'empty';
+    } else if (mode === 'fill') {
+      newPlayer[r][c] = cur === 'fill' ? 'empty' : 'fill';
+    } else if (mode === 'x') {
+      newPlayer[r][c] = cur === 'x' ? 'empty' : 'x';
     }
-    if (mode === 'fill') player.value[r][c] = cur === 'fill' ? 'empty' : 'fill';
-    if (mode === 'x') player.value[r][c] = cur === 'x' ? 'empty' : 'x';
+
+    player.value = newPlayer;
   }
 
   // Generate only on client to avoid hydration mismatch
