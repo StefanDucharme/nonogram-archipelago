@@ -20,9 +20,28 @@
   const colDepth = computed(() => Math.max(1, ...props.colClues.map((c) => c.length)));
   const rowDepth = computed(() => Math.max(1, ...props.rowClues.map((r) => r.length)));
 
+  const MAX_BOARD_PX = 520;
+
+  const cellSize = computed(() => {
+    const count = Math.max(props.rows, props.cols);
+    return Math.max(18, Math.floor(MAX_BOARD_PX / count));
+  });
+
+  const groupSize = 5;
+  const padPx = 8; // matches p-2 = 0.5rem = 8px
+
+  const boardW = computed(() => props.cols * cellSize.value);
+  const boardH = computed(() => props.rows * cellSize.value);
+
+  function isThick(i: number) {
+    return i > 0 && i % groupSize === 0;
+  }
+
   function onPointerDown(e: PointerEvent, r: number, c: number) {
     e.preventDefault();
-    selected.value = { r, c };
+
+    // Only left click sets "selected"
+    if (e.button === 0) selected.value = { r, c };
 
     const erase = e.shiftKey;
     if (erase) return emit('cell', r, c, 'erase');
@@ -42,7 +61,7 @@
 </script>
 
 <template>
-  <div class="select-none" style="--cell: 2.5rem">
+  <div class="select-none" :style="{ '--cell': `${cellSize}px` }">
     <!-- Whole thing is a 2x2 grid: [corner | col clues] / [row clues | board] -->
     <div
       class="grid gap-2"
@@ -53,7 +72,7 @@
     >
       <!-- corner: sized by rowDepth and colDepth so clue grids align -->
       <div
-        class="rounded-lg bg-neutral-950/40 border border-neutral-900"
+        class="bg-neutral-950/40 border border-neutral-900 invisible"
         :style="{
           width: `calc(${rowDepth} * 1.25rem)`,
           height: `calc(${colDepth} * 1.1rem)`,
@@ -66,7 +85,7 @@
           class="grid"
           :style="{
             gridTemplateColumns: `repeat(${cols}, var(--cell))`,
-            gridTemplateRows: `repeat(${colDepth}, 1.1rem)`,
+            gridTemplateRows: `repeat(${colDepth}, calc(var(--cell) * 0.45))`,
           }"
         >
           <template v-for="c in cols" :key="`col-${c}`">
@@ -84,7 +103,7 @@
           class="grid"
           :style="{
             gridTemplateRows: `repeat(${rows}, var(--cell))`,
-            gridTemplateColumns: `repeat(${rowDepth}, 1.25rem)`,
+            gridTemplateColumns: `repeat(${rowDepth}, calc(var(--cell) * 0.45))`,
           }"
         >
           <template v-for="r in rows" :key="`row-${r}`">
@@ -98,50 +117,88 @@
 
       <!-- board (grid: rows x cols) -->
       <div class="overflow-hidden">
-        <div
-          class="grid rounded-lg bg-neutral-900/40 p-2 border border-neutral-800"
-          :style="{
-            gridTemplateColumns: `repeat(${cols}, var(--cell))`,
-            gridTemplateRows: `repeat(${rows}, var(--cell))`,
-          }"
-          @contextmenu.prevent
-        >
-          <button
-            v-for="idx in rows * cols"
-            :key="idx"
-            class="flex items-center justify-center rounded-sm transition active:scale-[0.98]"
-            :class="
-              (() => {
-                const r = Math.floor((idx - 1) / cols);
-                const c = (idx - 1) % cols;
-                const v = player[r][c];
-                const sel = selected && selected.r === r && selected.c === c;
-
-                // thicker lines every 5
-                const thickBottom = (r + 1) % 5 === 0 && r !== rows - 1;
-                const thickRight = (c + 1) % 5 === 0 && c !== cols - 1;
-
-                return [
-                  'border',
-                  thickBottom ? 'border-b-2' : '',
-                  thickRight ? 'border-r-2' : '',
-                  thickBottom || thickRight ? 'border-neutral-700' : 'border-neutral-800',
-
-                  v === 'fill' ? 'bg-neutral-800' : 'bg-neutral-950/30',
-
-                  // selection highlight
-                  sel ? 'ring-2 ring-blue-500 ring-offset-1 ring-offset-neutral-950' : '',
-
-                  // mistake highlighting
-                  isWrongFill(r, c) ? 'bg-red-500/20 border-red-500/60' : '',
-                  isWrongX(r, c) ? 'bg-orange-500/15 border-orange-500/60' : '',
-                ];
-              })()
-            "
-            @pointerdown="(e) => onPointerDown(e as PointerEvent, Math.floor((idx - 1) / cols), (idx - 1) % cols)"
+        <div class="relative p-2 bg-neutral-950/40">
+          <!-- SVG Grid overlay (pixel-perfect) -->
+          <svg
+            class="pointer-events-none absolute"
+            :style="{
+              left: `${padPx}px`,
+              top: `${padPx}px`,
+              width: `${boardW}px`,
+              height: `${boardH}px`,
+            }"
+            :viewBox="`0 0 ${boardW} ${boardH}`"
+            shape-rendering="crispEdges"
           >
-            <span v-if="player[Math.floor((idx - 1) / cols)][(idx - 1) % cols] === 'x'" class="text-sm opacity-70"> ✕ </span>
-          </button>
+            <!-- OUTER BORDER (half-pixel inset so all sides render the same) -->
+            <line x1="0.5" y1="0.5" :x2="boardW - 0.5" y2="0.5" stroke="rgba(255,255,255,0.10)" stroke-width="1" />
+            <line x1="0.5" y1="0.5" x2="0.5" :y2="boardH - 0.5" stroke="rgba(255,255,255,0.10)" stroke-width="1" />
+            <line x1="0.5" :y1="boardH - 0.5" :x2="boardW - 0.5" :y2="boardH - 0.5" stroke="rgba(255,255,255,0.10)" stroke-width="1" />
+            <line :x1="boardW - 0.5" y1="0.5" :x2="boardW - 0.5" :y2="boardH - 0.5" stroke="rgba(255,255,255,0.10)" stroke-width="1" />
+
+            <!-- INTERNAL vertical lines at cell boundaries -->
+            <template v-for="i in cols - 1" :key="`v-${i}`">
+              <line
+                :x1="i * cellSize"
+                y1="0"
+                :x2="i * cellSize"
+                :y2="boardH"
+                :stroke="isThick(i) ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.10)'"
+                :stroke-width="isThick(i) ? 2 : 1"
+              />
+            </template>
+
+            <!-- INTERNAL horizontal lines at cell boundaries -->
+            <template v-for="i in rows - 1" :key="`h-${i}`">
+              <line
+                x1="0"
+                :y1="i * cellSize"
+                :x2="boardW"
+                :y2="i * cellSize"
+                :stroke="isThick(i) ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.10)'"
+                :stroke-width="isThick(i) ? 2 : 1"
+              />
+            </template>
+          </svg>
+
+          <!-- Clickable cells -->
+          <div
+            class="grid relative"
+            :style="{
+              gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
+              gridTemplateRows: `repeat(${rows}, ${cellSize}px)`,
+            }"
+            @contextmenu.prevent
+          >
+            <button
+              v-for="idx in rows * cols"
+              :key="idx"
+              class="flex items-center justify-center transition active:scale-[0.98] hover:bg-white/5"
+              :class="
+                (() => {
+                  const r = Math.floor((idx - 1) / cols);
+                  const c = (idx - 1) % cols;
+                  const v = player[r][c];
+                  const sel = selected && selected.r === r && selected.c === c;
+
+                  return [
+                    // normal cell look
+                    v === 'fill' ? 'bg-neutral-800' : 'bg-transparent',
+
+                    // selection: cell itself turns blue (even if empty)
+                    sel ? 'bg-blue-500/25' : '',
+
+                    // mistakes (optional)
+                    isWrongFill(r, c) ? 'bg-red-500/25' : '',
+                    isWrongX(r, c) ? 'bg-orange-500/20' : '',
+                  ];
+                })()
+              "
+              @pointerdown="(e) => onPointerDown(e as PointerEvent, Math.floor((idx - 1) / cols), (idx - 1) % cols)"
+            >
+              <span v-if="player[Math.floor((idx - 1) / cols)][(idx - 1) % cols] === 'x'" class="text-sm opacity-70"> ✕ </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

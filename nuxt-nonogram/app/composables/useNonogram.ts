@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { type Cell, type Grid, type Mark, computeColClues, computeRowClues, isSolved, makeGrid, randomSolution } from '~/utils/nonogram';
 
 export function useNonogram() {
@@ -6,12 +6,12 @@ export function useNonogram() {
   const cols = ref(10);
   const fillRate = ref(0.45);
 
-  const solution = ref<Grid<Cell>>(randomSolution(rows.value, cols.value, fillRate.value));
+  // SSR-safe deterministic initial state
+  const solution = ref<Grid<Cell>>(makeGrid(rows.value, cols.value, 0 as Cell));
   const player = ref<Grid<Mark>>(makeGrid(rows.value, cols.value, 'empty'));
 
   const rowClues = computed(() => computeRowClues(solution.value));
   const colClues = computed(() => computeColClues(solution.value));
-
   const solved = computed(() => isSolved(player.value, solution.value));
 
   function newRandom(r = rows.value, c = cols.value) {
@@ -38,6 +38,11 @@ export function useNonogram() {
     if (mode === 'fill') player.value[r][c] = cur === 'fill' ? 'empty' : 'fill';
     if (mode === 'x') player.value[r][c] = cur === 'x' ? 'empty' : 'x';
   }
+
+  // Generate only on client to avoid hydration mismatch
+  onMounted(() => {
+    newRandom(rows.value, cols.value);
+  });
 
   return {
     rows,

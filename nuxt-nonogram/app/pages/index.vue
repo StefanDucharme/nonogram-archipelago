@@ -82,12 +82,12 @@
 
           <div v-if="solved" class="mt-4 p-3 rounded-lg border border-lime-400/40 bg-lime-400/10 text-lime-200">Solved 🎉</div>
 
-          <label class="flex items-center gap-2 text-xs text-neutral-300">
+          <label class="flex items-center gap-2 text-xs text-neutral-300 mt-4">
             <input type="checkbox" v-model="showMistakes" class="accent-blue-500" />
             Show mistakes
           </label>
 
-          <button class="px-3 py-2 rounded bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-sm" @click="checkAll()">
+          <button class="px-3 py-2 rounded bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-sm mt-4" @click="checkAll()">
             Check all
           </button>
         </div>
