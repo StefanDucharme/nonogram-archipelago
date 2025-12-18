@@ -3,9 +3,17 @@
   import { useNonogram } from '~/composables/useNonogram';
   import { useArchipelago } from '~/composables/useArchipelago';
 
-  const { rows, cols, fillRate, player, rowClues, colClues, solved, newRandom, clearPlayer, cycleCell } = useNonogram();
+  const { rows, cols, fillRate, solution, player, rowClues, colClues, solved, newRandom, clearPlayer, cycleCell } = useNonogram();
 
   const { host, port, slot, password, status, lastMessage, connect, disconnect, checkPuzzleSolved } = useArchipelago();
+
+  const showMistakes = ref(false);
+  const checkPulse = ref(false);
+
+  function checkAll() {
+    checkPulse.value = true;
+    window.setTimeout(() => (checkPulse.value = false), 2000);
+  }
 
   watchEffect(() => {
     if (solved.value) checkPuzzleSolved();
@@ -61,9 +69,27 @@
 
       <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
         <div class="overflow-auto">
-          <NonogramBoard :rows="rows" :cols="cols" :row-clues="rowClues" :col-clues="colClues" :player="player" @cell="cycleCell" />
+          <NonogramBoard
+            :rows="rows"
+            :cols="cols"
+            :row-clues="rowClues"
+            :col-clues="colClues"
+            :player="player"
+            :solution="solution"
+            :show-mistakes="showMistakes || checkPulse"
+            @cell="cycleCell"
+          />
 
           <div v-if="solved" class="mt-4 p-3 rounded-lg border border-lime-400/40 bg-lime-400/10 text-lime-200">Solved 🎉</div>
+
+          <label class="flex items-center gap-2 text-xs text-neutral-300">
+            <input type="checkbox" v-model="showMistakes" class="accent-blue-500" />
+            Show mistakes
+          </label>
+
+          <button class="px-3 py-2 rounded bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-sm" @click="checkAll()">
+            Check all
+          </button>
         </div>
 
         <div class="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
