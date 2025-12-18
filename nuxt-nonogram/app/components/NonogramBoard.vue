@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import { ref, computed, onMounted, onUnmounted } from 'vue';
   import type { Cell, Mark } from '~/utils/nonogram';
 
   const props = defineProps<{
@@ -11,6 +12,8 @@
     showMistakes?: boolean;
     autoX?: boolean;
     greyCompletedHints?: boolean;
+    showDebugGrid?: boolean;
+    dragPainting?: boolean;
   }>();
 
   const emit = defineEmits<{
@@ -18,6 +21,29 @@
   }>();
 
   const selected = ref<{ r: number; c: number } | null>(null);
+
+  // Drag painting state
+  const isDragging = ref(false);
+  const dragMode = ref<'fill' | 'x' | 'erase' | null>(null);
+  const dragStartCell = ref<{ r: number; c: number } | null>(null);
+
+  // Global pointer up handler for when pointer is released outside grid
+  function handleGlobalPointerUp() {
+    if (isDragging.value) {
+      isDragging.value = false;
+      dragMode.value = null;
+      dragStartCell.value = null;
+    }
+  }
+
+  // Add global pointer up listener
+  onMounted(() => {
+    document.addEventListener('pointerup', handleGlobalPointerUp);
+  });
+
+  onUnmounted(() => {
+    document.removeEventListener('pointerup', handleGlobalPointerUp);
+  });
 
   const colDepth = computed(() => Math.max(1, ...props.colClues.map((c) => c.length)));
   const rowDepth = computed(() => Math.max(1, ...props.rowClues.map((r) => r.length)));
@@ -39,6 +65,27 @@
     return i > 0 && i % groupSize === 0;
   }
 
+  // Debug function to check hint calculation
+  function debugHints() {
+    if (!props.solution) return;
+    console.log('=== HINT DEBUG ===');
+    console.log('Solution grid:');
+    props.solution.forEach((row, i) => {
+      console.log(`Row ${i + 1}:`, row.join(' '));
+    });
+
+    console.log('\\nCalculated row hints:');
+    props.rowClues.forEach((clues, i) => {
+      console.log(`Row ${i + 1}:`, clues);
+    });
+
+    console.log('\\nCalculated column hints:');
+    props.colClues.forEach((clues, i) => {
+      console.log(`Col ${i + 1}:`, clues);
+    });
+    console.log('==================');
+  }
+
   function onPointerDown(e: PointerEvent, r: number, c: number) {
     e.preventDefault();
 
@@ -46,9 +93,46 @@
     if (e.button === 0) selected.value = { r, c };
 
     const erase = e.shiftKey;
-    if (erase) return emit('cell', r, c, 'erase');
-    if (e.button === 2) emit('cell', r, c, 'x');
-    else emit('cell', r, c, 'fill');
+    let mode: 'fill' | 'x' | 'erase';
+
+    if (erase) mode = 'erase';
+    else if (e.button === 2) mode = 'x';
+    else mode = 'fill';
+
+    // Emit the cell change
+    emit('cell', r, c, mode);
+
+    // Start drag painting if enabled
+    if (props.dragPainting) {
+      console.log('Starting drag painting with mode:', mode);
+      isDragging.value = true;
+      dragMode.value = mode;
+      dragStartCell.value = { r, c };
+    } else {
+      console.log('Drag painting disabled, dragPainting:', props.dragPainting);
+    }
+  }
+
+  function onPointerMove(e: PointerEvent, r: number, c: number) {
+    if (!props.dragPainting || !isDragging.value || !dragMode.value) return;
+
+    e.preventDefault();
+    console.log('Drag painting:', r, c, dragMode.value);
+
+    // Paint the current cell if we've moved to a different cell
+    if (!dragStartCell.value || r !== dragStartCell.value.r || c !== dragStartCell.value.c) {
+      emit('cell', r, c, dragMode.value);
+      dragStartCell.value = { r, c };
+    }
+  }
+
+  function onPointerUp(e: PointerEvent) {
+    if (props.dragPainting && isDragging.value) {
+      e.preventDefault();
+      isDragging.value = false;
+      dragMode.value = null;
+      dragStartCell.value = null;
+    }
   }
 
   function isWrongFill(r: number, c: number) {
@@ -136,6 +220,72 @@
 
     return true;
   }
+
+  function isRowPatternUniquelyDetermined(r: number): boolean {
+    if (!props.solution) return false;
+
+    const playerRow = props.player[r];
+    const solutionRow = props.solution[r];
+    const clues = props.rowClues[r];
+
+    // If no clues or clue is [0], consider it determined if all cells are empty/X
+    if (clues.length === 1 && clues[0] === 0) {
+      return playerRow.every((cell) => cell !== 'fill');
+    }
+
+    // Check if all required cells are filled
+    let allRequiredFilled = true;
+    for (let c = 0; c < props.cols; c++) {
+      if (solutionRow[c] === 1 && playerRow[c] !== 'fill') {
+        allRequiredFilled = false;
+        break;
+      }
+    }
+
+    if (!allRequiredFilled) return false;
+
+    // Check if there are no wrong fills
+    for (let c = 0; c < props.cols; c++) {
+      if (solutionRow[c] === 0 && playerRow[c] === 'fill') {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function isColPatternUniquelyDetermined(c: number): boolean {
+    if (!props.solution) return false;
+
+    const playerCol = props.player.map((row) => row[c]);
+    const solutionCol = props.solution.map((row) => row[c]);
+    const clues = props.colClues[c];
+
+    // If no clues or clue is [0], consider it determined if all cells are empty/X
+    if (clues.length === 1 && clues[0] === 0) {
+      return playerCol.every((cell) => cell !== 'fill');
+    }
+
+    // Check if all required cells are filled
+    let allRequiredFilled = true;
+    for (let r = 0; r < props.rows; r++) {
+      if (solutionCol[r] === 1 && playerCol[r] !== 'fill') {
+        allRequiredFilled = false;
+        break;
+      }
+    }
+
+    if (!allRequiredFilled) return false;
+
+    // Check if there are no wrong fills
+    for (let r = 0; r < props.rows; r++) {
+      if (solutionCol[r] === 0 && playerCol[r] === 'fill') {
+        return false;
+      }
+    }
+
+    return true;
+  }
 </script>
 
 <template>
@@ -171,7 +321,7 @@
               v-for="c in cols"
               :key="`col-${c}-r-${i}`"
               class="flex items-end justify-center text-[11px] leading-none"
-              :class="props.greyCompletedHints && isColPatternComplete(c - 1) ? 'text-neutral-500' : 'text-neutral-300'"
+              :class="props.greyCompletedHints && isColPatternUniquelyDetermined(c - 1) ? 'text-neutral-500' : 'text-neutral-300'"
             >
               <!-- show from bottom -->
               {{
@@ -203,7 +353,7 @@
               v-for="i in rowDepth"
               :key="`row-${r}-c-${i}`"
               class="flex items-center justify-end pr-1 text-[11px] leading-none"
-              :class="props.greyCompletedHints && isRowPatternComplete(r - 1) ? 'text-neutral-500' : 'text-neutral-300'"
+              :class="props.greyCompletedHints && isRowPatternUniquelyDetermined(r - 1) ? 'text-neutral-500' : 'text-neutral-300'"
             >
               <!-- show from right -->
               {{
@@ -306,6 +456,8 @@
                 })()
               "
               @pointerdown="(e) => onPointerDown(e as PointerEvent, Math.floor((idx - 1) / cols), (idx - 1) % cols)"
+              @pointermove="(e) => onPointerMove(e as PointerEvent, Math.floor((idx - 1) / cols), (idx - 1) % cols)"
+              @pointerup="(e) => onPointerUp(e as PointerEvent)"
             >
               <span
                 v-if="player[Math.floor((idx - 1) / cols)][(idx - 1) % cols] === 'x' || shouldAutoX(Math.floor((idx - 1) / cols), (idx - 1) % cols)"
@@ -329,5 +481,33 @@
     </div>
 
     <div class="mt-3 text-xs text-neutral-400">Left click: fill • Right click: X • Shift+click: erase</div>
+
+    <!-- Debug Solution Grid -->
+    <div v-if="props.showDebugGrid && props.solution" class="mt-6 p-4 bg-neutral-800/20 rounded border border-neutral-700">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold text-neutral-300">Solution (Debug)</h3>
+        <button @click="debugHints" class="px-2 py-1 text-xs bg-neutral-700 hover:bg-neutral-600 text-neutral-200 rounded">Log Hints</button>
+      </div>
+      <div
+        class="grid gap-0 border border-neutral-600"
+        :style="{
+          gridTemplateColumns: `repeat(${cols}, 12px)`,
+          gridTemplateRows: `repeat(${rows}, 12px)`,
+        }"
+      >
+        <div v-for="(row, r) in solution" :key="`debug-row-${r}`" class="contents">
+          <div
+            v-for="(cell, c) in row"
+            :key="`debug-${r}-${c}`"
+            class="border-r border-b border-neutral-700"
+            :class="cell === 1 ? 'bg-neutral-400' : 'bg-transparent'"
+            :style="{
+              borderRightWidth: c === cols - 1 ? '0' : '1px',
+              borderBottomWidth: r === rows - 1 ? '0' : '1px',
+            }"
+          ></div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
