@@ -242,108 +242,6 @@
 
     return true;
   }
-
-  function getCompletedClueIndices(line: Mark[], clues: number[]): Set<number> {
-    const completedIndices = new Set<number>();
-
-    // Handle empty clue case (no fills allowed)
-    if (clues.length === 1 && clues[0] === 0) {
-      if (line.every((cell) => cell !== 'fill')) {
-        completedIndices.add(0);
-      }
-      return completedIndices;
-    }
-
-    // Extract filled segments from the line
-    const segments: Array<{ start: number; length: number }> = [];
-    let currentStart = -1;
-
-    for (let i = 0; i < line.length; i++) {
-      if (line[i] === 'fill') {
-        if (currentStart === -1) {
-          currentStart = i;
-        }
-      } else {
-        if (currentStart !== -1) {
-          segments.push({
-            start: currentStart,
-            length: i - currentStart,
-          });
-          currentStart = -1;
-        }
-      }
-    }
-
-    // Handle segment that goes to the end
-    if (currentStart !== -1) {
-      segments.push({
-        start: currentStart,
-        length: line.length - currentStart,
-      });
-    }
-
-    // Sort segments by position
-    const sortedSegments = [...segments].sort((a, b) => a.start - b.start);
-
-    // Match segments to clues in order
-    let clueIndex = 0;
-    for (const segment of sortedSegments) {
-      // Check if this segment is properly isolated
-      if (!isSegmentIsolated(line, segment)) {
-        continue;
-      }
-
-      // Find the next matching clue
-      while (clueIndex < clues.length) {
-        if (clues[clueIndex] === segment.length) {
-          completedIndices.add(clueIndex);
-          clueIndex++;
-          break;
-        }
-        clueIndex++;
-      }
-    }
-
-    return completedIndices;
-  }
-
-  function isSegmentIsolated(line: Mark[], segment: { start: number; length: number }): boolean {
-    // Check left boundary - segment must be at start of line or preceded by non-fill
-    const leftBounded = segment.start === 0 || line[segment.start - 1] !== 'fill';
-
-    // Check right boundary - segment must be at end of line or followed by non-fill
-    const rightPos = segment.start + segment.length;
-    const rightBounded = rightPos >= line.length || line[rightPos] !== 'fill';
-
-    return leftBounded && rightBounded;
-  }
-
-  function getRowCompletedClues(r: number): Set<number> {
-    return getCompletedClueIndices(props.player[r], props.rowClues[r]);
-  }
-
-  function getColCompletedClues(c: number): Set<number> {
-    const playerCol = props.player.map((row) => row[c]);
-    return getCompletedClueIndices(playerCol, props.colClues[c]);
-  }
-
-  function isRowClueCompleted(r: number, clueIndex: number): boolean {
-    return getRowCompletedClues(r).has(clueIndex);
-  }
-
-  function isColClueCompleted(c: number, clueIndex: number): boolean {
-    return getColCompletedClues(c).has(clueIndex);
-  }
-
-  function isRowPatternUniquelyDetermined(r: number): boolean {
-    const completedClues = getRowCompletedClues(r);
-    return completedClues.size === props.rowClues[r].length;
-  }
-
-  function isColPatternUniquelyDetermined(c: number): boolean {
-    const completedClues = getColCompletedClues(c);
-    return completedClues.size === props.colClues[c].length;
-  }
 </script>
 
 <template>
@@ -375,21 +273,7 @@
           }"
         >
           <template v-for="i in colDepth" :key="`row-${i}`">
-            <div
-              v-for="c in cols"
-              :key="`col-${c}-r-${i}`"
-              class="flex items-end justify-center text-[11px] leading-none"
-              :class="
-                (() => {
-                  const clueArray = colClues[c - 1];
-                  const clueIndex = i - (colDepth - clueArray.length);
-                  if (clueIndex >= 0 && clueIndex < clueArray.length) {
-                    return props.greyCompletedHints && isColClueCompleted(c - 1, clueIndex) ? 'text-neutral-600' : 'text-neutral-300';
-                  }
-                  return 'text-neutral-300';
-                })()
-              "
-            >
+            <div v-for="c in cols" :key="`col-${c}-r-${i}`" class="flex items-end justify-center text-[11px] leading-none text-neutral-300">
               <!-- show from bottom -->
               {{
                 (() => {
@@ -416,21 +300,7 @@
           }"
         >
           <template v-for="r in rows" :key="`row-${r}`">
-            <div
-              v-for="i in rowDepth"
-              :key="`row-${r}-c-${i}`"
-              class="flex items-center justify-end pr-1 text-[11px] leading-none"
-              :class="
-                (() => {
-                  const clueArray = rowClues[r - 1];
-                  const clueIndex = i - (rowDepth - clueArray.length);
-                  if (clueIndex >= 0 && clueIndex < clueArray.length) {
-                    return props.greyCompletedHints && isRowClueCompleted(r - 1, clueIndex) ? 'text-neutral-600' : 'text-neutral-300';
-                  }
-                  return 'text-neutral-300';
-                })()
-              "
-            >
+            <div v-for="i in rowDepth" :key="`row-${r}-c-${i}`" class="flex items-center justify-end pr-1 text-[11px] leading-none text-neutral-300">
               <!-- show from right -->
               {{
                 (() => {
