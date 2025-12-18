@@ -29,9 +29,15 @@ export const AP_ITEMS = {
   // Hint Visibility (8001xxx range)
   UNLOCK_HINTS: 8001001,
 
+  // Lives (8002xxx range)
+  EXTRA_LIFE: 8002001,
+
+  // Coins (8003xxx range)
+  COINS_BUNDLE: 8003001, // Grants coins
+
   // Future items can be added here
-  // UNLOCK_LARGER_PUZZLES: 8002001,
-  // HINT_TOKEN: 8003001,
+  // UNLOCK_LARGER_PUZZLES: 8004001,
+  // HINT_TOKEN: 8005001,
 } as const;
 
 // ============================================
@@ -92,6 +98,18 @@ export const ITEM_REGISTRY: ItemDefinition[] = [
     description: 'Unlock visibility of hint numbers (no more question marks)',
     category: 'hints',
   },
+  {
+    id: AP_ITEMS.EXTRA_LIFE,
+    name: 'Extra Life',
+    description: 'Permanently increases your maximum lives by 1',
+    category: 'progression',
+  },
+  {
+    id: AP_ITEMS.COINS_BUNDLE,
+    name: 'Coin Bundle',
+    description: 'Grants 10 coins to spend in the shop',
+    category: 'consumable',
+  },
 ];
 
 // ============================================
@@ -113,6 +131,17 @@ export function useArchipelagoItems() {
   // Whether we're in Archipelago mode (locked) or free play (unlocked)
   const archipelagoMode = ref(false);
 
+  // Lives system
+  const baseLives = ref(3); // Default starting lives per puzzle (configurable)
+  const extraLives = ref(0); // Permanent extra lives from AP rewards
+  const currentLives = ref(baseLives.value); // Current lives for the puzzle
+  const maxLives = computed(() => baseLives.value + extraLives.value);
+
+  // Coins system
+  const startingCoins = ref(0); // Starting coins (configurable)
+  const coins = ref(0); // Current coins
+  const COINS_PER_BUNDLE = 10; // Coins received from AP bundle
+
   // Track received items for the UI
   const receivedItems = ref<number[]>([]);
 
@@ -128,8 +157,9 @@ export function useArchipelagoItems() {
 
   // Receive an item from Archipelago
   function receiveItem(itemId: number): string | null {
-    // Don't process duplicates
-    if (receivedItems.value.includes(itemId)) {
+    // Don't process duplicates (except for stackable items like EXTRA_LIFE)
+    const isStackable = itemId === AP_ITEMS.EXTRA_LIFE;
+    if (!isStackable && receivedItems.value.includes(itemId)) {
       return null;
     }
 
@@ -156,6 +186,13 @@ export function useArchipelagoItems() {
       case AP_ITEMS.UNLOCK_HINTS:
         unlocks.hints = true;
         break;
+      case AP_ITEMS.EXTRA_LIFE:
+        extraLives.value += 1;
+        currentLives.value = Math.min(currentLives.value + 1, maxLives.value);
+        break;
+      case AP_ITEMS.COINS_BUNDLE:
+        coins.value += COINS_PER_BUNDLE;
+        break;
       default:
         console.warn(`Unknown item received: ${itemId}`);
         return null;
@@ -174,6 +211,9 @@ export function useArchipelagoItems() {
     unlocks.checkMistakes = false;
     unlocks.hints = false;
     receivedItems.value = [];
+    extraLives.value = 0;
+    currentLives.value = baseLives.value;
+    coins.value = startingCoins.value;
   }
 
   // Disable Archipelago mode (unlock everything for free play)
@@ -185,6 +225,37 @@ export function useArchipelagoItems() {
     unlocks.dragPaint = true;
     unlocks.checkMistakes = true;
     unlocks.hints = true;
+    // In free play, lives are effectively unlimited (set high)
+    currentLives.value = 999;
+    coins.value = 999; // Unlimited coins in free play
+  }
+
+  // Reset lives for a new puzzle (keeps extra lives from AP)
+  function resetLivesForNewPuzzle() {
+    currentLives.value = maxLives.value;
+  }
+
+  // Lose a life (returns true if still alive, false if game over)
+  function loseLife(): boolean {
+    if (!archipelagoMode.value) return true; // Unlimited lives in free play
+    if (currentLives.value > 0) {
+      currentLives.value -= 1;
+    }
+    return currentLives.value > 0;
+  }
+
+  // Add coins (for completing rows/columns)
+  function addCoins(amount: number) {
+    coins.value += amount;
+  }
+
+  // Spend coins (returns true if successful, false if not enough)
+  function spendCoins(amount: number): boolean {
+    if (coins.value >= amount) {
+      coins.value -= amount;
+      return true;
+    }
+    return false;
   }
 
   // Reset all unlocks (for new game)
@@ -213,6 +284,17 @@ export function useArchipelagoItems() {
     archipelagoMode,
     receivedItems,
 
+    // Lives
+    currentLives,
+    maxLives,
+    extraLives,
+    baseLives,
+
+    // Coins
+    coins,
+    startingCoins,
+    COINS_PER_BUNDLE,
+
     // Item registry
     ITEM_REGISTRY,
     AP_ITEMS,
@@ -225,6 +307,10 @@ export function useArchipelagoItems() {
     enableArchipelagoMode,
     disableArchipelagoMode,
     resetUnlocks,
+    resetLivesForNewPuzzle,
+    loseLife,
+    addCoins,
+    spendCoins,
 
     // Computed
     lockedItems,

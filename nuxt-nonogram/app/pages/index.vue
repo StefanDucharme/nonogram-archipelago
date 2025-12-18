@@ -17,6 +17,7 @@
     isColClueComplete,
     newRandom,
     clearPlayer,
+    autoSolve,
     cycleCell,
   } = useNonogram();
 
@@ -30,6 +31,7 @@
   const greyCompletedHints = ref(true);
   const showDebugGrid = ref(true);
   const dragPainting = ref(true);
+  const coinsPerLine = ref(1); // Coins earned per completed row/column
 
   // Computed values that combine user preferences with unlock state
   const effectiveShowMistakes = computed(() => showMistakes.value && items.unlocks.showMistakes);
@@ -37,6 +39,75 @@
   const effectiveGreyHints = computed(() => greyCompletedHints.value && items.unlocks.greyHints);
   const effectiveDragPainting = computed(() => dragPainting.value && items.unlocks.dragPaint);
   const hintsHidden = computed(() => !items.unlocks.hints);
+
+  // Track completed rows/columns to award coins only once
+  const completedRows = ref<Set<number>>(new Set());
+  const completedCols = ref<Set<number>>(new Set());
+
+  // Check for newly completed rows/columns and award coins
+  function checkLineCompletions() {
+    if (!solution.value) return;
+
+    // Check rows
+    for (let r = 0; r < rows.value; r++) {
+      if (completedRows.value.has(r)) continue;
+
+      let rowComplete = true;
+      for (let c = 0; c < cols.value; c++) {
+        const shouldBeFilled = solution.value[r]?.[c] === 1;
+        const playerFilled = player.value[r]?.[c] === 'fill';
+        if (shouldBeFilled !== playerFilled) {
+          rowComplete = false;
+          break;
+        }
+      }
+
+      if (rowComplete) {
+        completedRows.value.add(r);
+        items.addCoins(coinsPerLine.value);
+      }
+    }
+
+    // Check columns
+    for (let c = 0; c < cols.value; c++) {
+      if (completedCols.value.has(c)) continue;
+
+      let colComplete = true;
+      for (let r = 0; r < rows.value; r++) {
+        const shouldBeFilled = solution.value[r]?.[c] === 1;
+        const playerFilled = player.value[r]?.[c] === 'fill';
+        if (shouldBeFilled !== playerFilled) {
+          colComplete = false;
+          break;
+        }
+      }
+
+      if (colComplete) {
+        completedCols.value.add(c);
+        items.addCoins(coinsPerLine.value);
+      }
+    }
+  }
+
+  // Handle cell changes - check for mistakes
+  function handleCellChange(r: number, c: number, mode: 'fill' | 'x' | 'erase') {
+    // First apply the change
+    cycleCell(r, c, mode);
+
+    // Then check for mistake (only for fill actions)
+    if (mode === 'fill' && solution.value) {
+      const shouldBeFilled = solution.value[r]?.[c] === 1;
+      const playerFilled = player.value[r]?.[c] === 'fill';
+
+      // If player filled a cell that should be empty, it's a mistake
+      if (playerFilled && !shouldBeFilled) {
+        items.loseLife();
+      }
+    }
+
+    // Check for newly completed lines
+    checkLineCompletions();
+  }
 
   function checkAll() {
     if (!items.unlocks.checkMistakes) return;
@@ -92,6 +163,11 @@
     // When locked, ensure square randomize
     if (lockSize.value) newRandom(rows.value, rows.value);
     else newRandom(rows.value, cols.value);
+    // Reset lives for new puzzle
+    items.resetLivesForNewPuzzle();
+    // Reset completed line tracking
+    completedRows.value = new Set();
+    completedCols.value = new Set();
   }
 </script>
 
@@ -109,6 +185,60 @@
 
         <!-- LEFT: board -->
         <div class="glass-card p-6 animate-fade-in">
+          <!-- Status bar: Lives, Coins, Check Mistakes -->
+          <div class="flex items-center justify-between mb-4 pb-4 border-b border-neutral-700/50">
+            <div class="flex items-center gap-6">
+              <!-- Lives Display -->
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-neutral-400">Lives:</span>
+                <div class="flex items-center gap-0.5">
+                  <span
+                    v-for="i in items.maxLives.value"
+                    :key="i"
+                    class="text-lg"
+                    :class="i <= items.currentLives.value ? 'text-red-400' : 'text-neutral-600'"
+                  >
+                    ♥
+                  </span>
+                  <span v-if="!items.archipelagoMode.value" class="text-xs text-neutral-500 ml-1">(∞)</span>
+                </div>
+              </div>
+              <!-- Coins Display -->
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-neutral-400">Coins:</span>
+                <span class="text-lg font-bold text-amber-400">🪙 {{ items.coins.value }}</span>
+                <span v-if="!items.archipelagoMode.value" class="text-xs text-neutral-500">(∞)</span>
+              </div>
+            </div>
+            <!-- Check Mistakes Button -->
+            <button
+              type="button"
+              class="btn-secondary text-sm relative"
+              :class="{ 'opacity-50 cursor-not-allowed': !items.unlocks.checkMistakes }"
+              :disabled="!items.unlocks.checkMistakes"
+              @click="checkAll()"
+            >
+              <span v-if="!items.unlocks.checkMistakes" class="mr-1">🔒</span>
+              Check Mistakes
+            </button>
+          </div>
+
+          <div
+            v-if="solved"
+            class="mb-6 p-4 rounded-sm border border-accent-500/40 bg-accent-500/10 text-accent-200 celebration-glow animate-slide-up"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="text-2xl">🎉</span>
+                <div>
+                  <div class="font-semibold">Puzzle Solved!</div>
+                  <div class="text-sm text-accent-300/80">Congratulations on completing the nonogram!</div>
+                </div>
+              </div>
+              <button type="button" class="btn-primary" @click="randomize()">New Puzzle</button>
+            </div>
+          </div>
+
           <NonogramBoard
             :rows="rows"
             :cols="cols"
@@ -124,21 +254,8 @@
             :show-debug-grid="showDebugGrid"
             :drag-painting="effectiveDragPainting"
             :hide-hints="hintsHidden"
-            @cell="cycleCell"
+            @cell="handleCellChange"
           />
-
-          <div
-            v-if="solved"
-            class="mt-6 p-4 rounded-sm border border-accent-500/40 bg-accent-500/10 text-accent-200 celebration-glow animate-slide-up"
-          >
-            <div class="flex items-center gap-3">
-              <span class="text-2xl">🎉</span>
-              <div>
-                <div class="font-semibold">Puzzle Solved!</div>
-                <div class="text-sm text-accent-300/80">Congratulations on completing the nonogram!</div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -174,20 +291,60 @@
               </div>
             </div>
 
-            <div>
-              <button
-                type="button"
-                class="btn-secondary w-full relative"
-                :class="{ 'opacity-50 cursor-not-allowed': !items.unlocks.checkMistakes }"
-                :disabled="!items.unlocks.checkMistakes"
-                @click="checkAll()"
-              >
-                <span v-if="!items.unlocks.checkMistakes" class="absolute left-3">🔒</span>
-                Check for Mistakes
-              </button>
-            </div>
+            <!-- Starting Resources -->
+            <section class="space-y-3">
+              <h3 class="section-heading">Starting Resources</h3>
+              <div class="bg-neutral-800/30 rounded-sm p-4 space-y-4">
+                <div class="flex items-center justify-between">
+                  <label for="starting-lives" class="text-sm text-neutral-300">Starting Lives</label>
+                  <input
+                    id="starting-lives"
+                    type="number"
+                    min="1"
+                    max="10"
+                    class="input-field w-20 text-center text-sm"
+                    v-model.number="items.baseLives.value"
+                  />
+                </div>
+                <div class="flex items-center justify-between">
+                  <label for="starting-coins" class="text-sm text-neutral-300">Starting Coins</label>
+                  <input
+                    id="starting-coins"
+                    type="number"
+                    min="0"
+                    max="100"
+                    class="input-field w-20 text-center text-sm"
+                    v-model.number="items.startingCoins.value"
+                  />
+                </div>
+                <div class="flex items-center justify-between">
+                  <label for="coins-per-line" class="text-sm text-neutral-300">Coins per Line</label>
+                  <input
+                    id="coins-per-line"
+                    type="number"
+                    min="0"
+                    max="10"
+                    class="input-field w-20 text-center text-sm"
+                    v-model.number="coinsPerLine"
+                  />
+                </div>
+                <div v-if="items.extraLives.value > 0" class="text-xs text-lime-400">
+                  +{{ items.extraLives.value }} extra lives from Archipelago
+                </div>
+              </div>
+            </section>
 
             <div class="space-y-6">
+              <section class="space-y-4">
+                <h3 class="section-heading">Debug</h3>
+                <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
+                  <label class="flex items-center gap-3 cursor-pointer group">
+                    <input type="checkbox" v-model="showDebugGrid" class="checkbox-field" />
+                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Show solution grid (debug)</span>
+                  </label>
+                  <button type="button" class="btn-secondary w-full" @click="autoSolve()">Auto-Solve Puzzle</button>
+                </div>
+              </section>
               <!-- Game Display -->
               <section class="space-y-4">
                 <h3 class="section-heading">Behaviour</h3>
@@ -217,11 +374,6 @@
                       <span v-if="!items.unlocks.greyHints">🔒</span>
                       Grey out completed hints
                     </span>
-                  </label>
-
-                  <label class="flex items-center gap-3 cursor-pointer group">
-                    <input type="checkbox" v-model="showDebugGrid" class="checkbox-field" />
-                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Show solution grid (debug)</span>
                   </label>
 
                   <label class="flex items-center gap-3 group" :class="items.unlocks.dragPaint ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'">
@@ -474,12 +626,16 @@
                     :key="item.id"
                     class="px-2 py-1 text-xs rounded transition-colors"
                     :class="
-                      items.hasItem(item.id) ? 'bg-lime-500/20 text-lime-300 cursor-default' : 'bg-neutral-700 hover:bg-neutral-600 text-neutral-200'
+                      items.hasItem(item.id) && item.id !== items.AP_ITEMS.EXTRA_LIFE && item.id !== items.AP_ITEMS.COINS_BUNDLE
+                        ? 'bg-lime-500/20 text-lime-300 cursor-default'
+                        : 'bg-neutral-700 hover:bg-neutral-600 text-neutral-200'
                     "
-                    :disabled="items.hasItem(item.id)"
+                    :disabled="items.hasItem(item.id) && item.id !== items.AP_ITEMS.EXTRA_LIFE && item.id !== items.AP_ITEMS.COINS_BUNDLE"
                     @click="debugReceiveItem(item.id)"
                   >
                     {{ item.name }}
+                    <span v-if="item.id === items.AP_ITEMS.EXTRA_LIFE" class="text-lime-400">(+{{ items.extraLives.value }})</span>
+                    <span v-if="item.id === items.AP_ITEMS.COINS_BUNDLE" class="text-amber-400">({{ items.coins.value }})</span>
                   </button>
                 </div>
               </div>

@@ -64,6 +64,12 @@ export function useNonogram() {
     player.value = makeGrid(rows.value, cols.value, 'empty');
   }
 
+  function autoSolve() {
+    // Copy solution to player grid, converting 1 to 'fill' and 0 to 'empty'
+    const newPlayer = solution.value.map((row) => row.map((cell) => (cell === 1 ? 'fill' : 'empty') as Mark));
+    player.value = newPlayer;
+  }
+
   function setCell(r: number, c: number, v: Mark) {
     player.value[r][c] = v;
   }
@@ -104,6 +110,7 @@ export function useNonogram() {
     isColClueComplete,
     newRandom,
     clearPlayer,
+    autoSolve,
     setCell,
     cycleCell,
   };
