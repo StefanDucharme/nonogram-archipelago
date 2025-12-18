@@ -3,7 +3,21 @@
   import { useNonogram } from '~/composables/useNonogram';
   import { useArchipelago } from '~/composables/useArchipelago';
 
-  const { rows, cols, fillRate, solution, player, rowClueNumbers, colClueNumbers, solved, isRowClueComplete, isColClueComplete, newRandom, clearPlayer, cycleCell } = useNonogram();
+  const {
+    rows,
+    cols,
+    fillRate,
+    solution,
+    player,
+    rowClueNumbers,
+    colClueNumbers,
+    solved,
+    isRowClueComplete,
+    isColClueComplete,
+    newRandom,
+    clearPlayer,
+    cycleCell,
+  } = useNonogram();
 
   const { host, port, slot, password, status, lastMessage, connect, disconnect, checkPuzzleSolved } = useArchipelago();
 
@@ -140,10 +154,14 @@
               </div>
             </div>
 
-            <form class="space-y-6">
+            <div>
+              <button type="button" class="btn-secondary w-full" @click="checkAll()">Check for Mistakes</button>
+            </div>
+
+            <div class="space-y-6">
               <!-- Game Display -->
               <section class="space-y-4">
-                <h3 class="section-heading">Display Options</h3>
+                <h3 class="section-heading">Behaviour</h3>
                 <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
                   <label class="flex items-center gap-3 cursor-pointer group">
                     <input type="checkbox" v-model="showMistakes" class="checkbox-field" />
@@ -169,10 +187,6 @@
                     <input type="checkbox" v-model="dragPainting" class="checkbox-field" />
                     <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Click and drag to paint cells</span>
                   </label>
-
-                  <div>
-                    <button type="button" class="btn-secondary w-full" @click="checkAll()">Check for Mistakes</button>
-                  </div>
                 </div>
               </section>
               <!-- Puzzle Dimensions -->
@@ -243,7 +257,7 @@
                   <button type="button" class="btn-destructive w-full" @click="clearPlayer()">Clear Progress</button>
                 </div>
               </section>
-            </form>
+            </div>
           </div>
 
           <!-- ARCHIPELAGO -->
