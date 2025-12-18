@@ -2,6 +2,7 @@
   import NonogramBoard from '~/components/NonogramBoard.vue';
   import { useNonogram } from '~/composables/useNonogram';
   import { useArchipelago } from '~/composables/useArchipelago';
+  import { AP_ITEMS } from '~/composables/useArchipelagoItems';
 
   const {
     rows,
@@ -19,8 +20,10 @@
     cycleCell,
   } = useNonogram();
 
-  const { host, port, slot, password, status, lastMessage, connect, disconnect, checkPuzzleSolved } = useArchipelago();
+  const { host, port, slot, password, status, lastMessage, messageLog, connect, disconnect, checkPuzzleSolved, debugReceiveItem, items } =
+    useArchipelago();
 
+  // User preference settings (these are what the user WANTS, actual behavior depends on unlocks)
   const showMistakes = ref(true);
   const checkPulse = ref(false);
   const autoX = ref(true);
@@ -28,7 +31,15 @@
   const showDebugGrid = ref(true);
   const dragPainting = ref(true);
 
+  // Computed values that combine user preferences with unlock state
+  const effectiveShowMistakes = computed(() => showMistakes.value && items.unlocks.showMistakes);
+  const effectiveAutoX = computed(() => autoX.value && items.unlocks.autoX);
+  const effectiveGreyHints = computed(() => greyCompletedHints.value && items.unlocks.greyHints);
+  const effectiveDragPainting = computed(() => dragPainting.value && items.unlocks.dragPaint);
+  const hintsHidden = computed(() => !items.unlocks.hints);
+
   function checkAll() {
+    if (!items.unlocks.checkMistakes) return;
     checkPulse.value = true;
     window.setTimeout(() => (checkPulse.value = false), 2000);
   }
@@ -105,13 +116,14 @@
             :col-clues="colClueNumbers"
             :player="player"
             :solution="solution"
-            :show-mistakes="showMistakes || checkPulse"
-            :auto-x="autoX"
-            :grey-completed-hints="greyCompletedHints"
+            :show-mistakes="effectiveShowMistakes || checkPulse"
+            :auto-x="effectiveAutoX"
+            :grey-completed-hints="effectiveGreyHints"
             :is-row-clue-complete="isRowClueComplete"
             :is-col-clue-complete="isColClueComplete"
             :show-debug-grid="showDebugGrid"
-            :drag-painting="dragPainting"
+            :drag-painting="effectiveDragPainting"
+            :hide-hints="hintsHidden"
             @cell="cycleCell"
           />
 
@@ -154,8 +166,25 @@
               </div>
             </div>
 
+            <!-- Archipelago Mode Indicator -->
+            <div v-if="items.archipelagoMode.value" class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-sm">
+              <div class="flex items-center gap-2 text-amber-300 text-sm">
+                <span>🔒</span>
+                <span>Archipelago Mode - Some features are locked until unlocked</span>
+              </div>
+            </div>
+
             <div>
-              <button type="button" class="btn-secondary w-full" @click="checkAll()">Check for Mistakes</button>
+              <button
+                type="button"
+                class="btn-secondary w-full relative"
+                :class="{ 'opacity-50 cursor-not-allowed': !items.unlocks.checkMistakes }"
+                :disabled="!items.unlocks.checkMistakes"
+                @click="checkAll()"
+              >
+                <span v-if="!items.unlocks.checkMistakes" class="absolute left-3">🔒</span>
+                Check for Mistakes
+              </button>
             </div>
 
             <div class="space-y-6">
@@ -163,19 +192,31 @@
               <section class="space-y-4">
                 <h3 class="section-heading">Behaviour</h3>
                 <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
-                  <label class="flex items-center gap-3 cursor-pointer group">
-                    <input type="checkbox" v-model="showMistakes" class="checkbox-field" />
-                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Show mistakes in real-time</span>
+                  <label
+                    class="flex items-center gap-3 group"
+                    :class="items.unlocks.showMistakes ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
+                  >
+                    <input type="checkbox" v-model="showMistakes" class="checkbox-field" :disabled="!items.unlocks.showMistakes" />
+                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
+                      <span v-if="!items.unlocks.showMistakes">🔒</span>
+                      Show mistakes in real-time
+                    </span>
                   </label>
 
-                  <label class="flex items-center gap-3 cursor-pointer group">
-                    <input type="checkbox" v-model="autoX" class="checkbox-field" />
-                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Auto-X completed rows/columns</span>
+                  <label class="flex items-center gap-3 group" :class="items.unlocks.autoX ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'">
+                    <input type="checkbox" v-model="autoX" class="checkbox-field" :disabled="!items.unlocks.autoX" />
+                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
+                      <span v-if="!items.unlocks.autoX">🔒</span>
+                      Auto-X completed rows/columns
+                    </span>
                   </label>
 
-                  <label class="flex items-center gap-3 cursor-pointer group">
-                    <input type="checkbox" v-model="greyCompletedHints" class="checkbox-field" />
-                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Grey out completed hints</span>
+                  <label class="flex items-center gap-3 group" :class="items.unlocks.greyHints ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'">
+                    <input type="checkbox" v-model="greyCompletedHints" class="checkbox-field" :disabled="!items.unlocks.greyHints" />
+                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
+                      <span v-if="!items.unlocks.greyHints">🔒</span>
+                      Grey out completed hints
+                    </span>
                   </label>
 
                   <label class="flex items-center gap-3 cursor-pointer group">
@@ -183,9 +224,12 @@
                     <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Show solution grid (debug)</span>
                   </label>
 
-                  <label class="flex items-center gap-3 cursor-pointer group">
-                    <input type="checkbox" v-model="dragPainting" class="checkbox-field" />
-                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Click and drag to paint cells</span>
+                  <label class="flex items-center gap-3 group" :class="items.unlocks.dragPaint ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'">
+                    <input type="checkbox" v-model="dragPainting" class="checkbox-field" :disabled="!items.unlocks.dragPaint" />
+                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
+                      <span v-if="!items.unlocks.dragPaint">🔒</span>
+                      Click and drag to paint cells
+                    </span>
                   </label>
                 </div>
               </section>
@@ -317,39 +361,129 @@
 
             <div class="bg-neutral-800/30 rounded-sm h-64 overflow-hidden">
               <div class="h-full p-4 overflow-auto custom-scrollbar">
-                <div class="flex items-center justify-center h-full text-xs text-neutral-500">
+                <div v-if="messageLog.length === 0" class="flex items-center justify-center h-full text-xs text-neutral-500">
                   <div class="text-center space-y-2">
                     <div>No messages yet</div>
                     <div class="text-2xs">Game events will appear here</div>
+                  </div>
+                </div>
+                <div v-else class="space-y-2">
+                  <div
+                    v-for="(msg, idx) in messageLog"
+                    :key="idx"
+                    class="text-xs py-1 border-b border-neutral-700/30 last:border-0"
+                    :class="{
+                      'text-lime-300': msg.type === 'item',
+                      'text-red-300': msg.type === 'error',
+                      'text-blue-300': msg.type === 'chat',
+                      'text-neutral-400': msg.type === 'info',
+                    }"
+                  >
+                    <span class="text-neutral-600 mr-2">{{ msg.time.toLocaleTimeString() }}</span>
+                    {{ msg.text }}
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- SHOP -->
+          <!-- SHOP / ITEMS -->
           <div v-else class="space-y-6">
             <div class="flex items-center gap-3">
               <div>
-                <h2 class="font-semibold text-neutral-100">Puzzle Shop</h2>
-                <p class="text-xs text-neutral-400">Hints and power-ups</p>
+                <h2 class="font-semibold text-neutral-100">Items & Unlocks</h2>
+                <p class="text-xs text-neutral-400">Archipelago items and unlock status</p>
               </div>
             </div>
 
-            <div class="space-y-3">
-              <div class="glass-card p-4 hover:bg-neutral-800/50 transition-colors">
-                <div class="flex items-start justify-between">
-                  <div class="space-y-1">
-                    <div class="flex items-center gap-2">
-                      <span class="text-sm font-medium text-neutral-200">Hint Token</span>
-                      <span class="px-2 py-0.5 bg-neutral-600/30 text-neutral-400 rounded text-xs font-medium">5 coins</span>
-                    </div>
-                    <div class="text-xs text-neutral-400">Reveal one correct cell in the puzzle</div>
-                  </div>
-                  <button class="btn-secondary text-xs px-3 py-1.5">Buy</button>
+            <!-- Mode Toggle -->
+            <div class="bg-neutral-800/30 rounded-sm p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-sm font-medium text-neutral-200">Archipelago Mode</div>
+                  <div class="text-xs text-neutral-400">Lock features until received from AP</div>
                 </div>
+                <button
+                  class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                  :class="
+                    items.archipelagoMode.value
+                      ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                      : 'bg-neutral-600/30 text-neutral-300 hover:bg-neutral-600/50'
+                  "
+                  @click="items.archipelagoMode.value ? items.disableArchipelagoMode() : items.enableArchipelagoMode()"
+                >
+                  {{ items.archipelagoMode.value ? 'Enabled (Locked)' : 'Disabled (Free Play)' }}
+                </button>
               </div>
             </div>
+
+            <!-- Unlocked Items -->
+            <section class="space-y-3">
+              <h3 class="section-heading flex items-center gap-2">
+                <span class="text-lime-400">✓</span> Unlocked ({{ items.unlockedItems.value.length }})
+              </h3>
+              <div v-if="items.unlockedItems.value.length === 0" class="text-xs text-neutral-500 italic p-3 bg-neutral-800/20 rounded">
+                No items unlocked yet
+              </div>
+              <div v-else class="space-y-2">
+                <div v-for="item in items.unlockedItems.value" :key="item.id" class="p-3 bg-lime-500/10 border border-lime-500/20 rounded-sm">
+                  <div class="flex items-start justify-between">
+                    <div>
+                      <div class="text-sm font-medium text-lime-300">{{ item.name }}</div>
+                      <div class="text-xs text-neutral-400">{{ item.description }}</div>
+                    </div>
+                    <span class="px-2 py-0.5 bg-lime-500/20 text-lime-300 rounded text-xs">{{ item.category }}</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Locked Items -->
+            <section class="space-y-3">
+              <h3 class="section-heading flex items-center gap-2">
+                <span class="text-neutral-500">🔒</span> Locked ({{ items.lockedItems.value.length }})
+              </h3>
+              <div v-if="items.lockedItems.value.length === 0" class="text-xs text-lime-400 italic p-3 bg-neutral-800/20 rounded">
+                All items unlocked! 🎉
+              </div>
+              <div v-else class="space-y-2">
+                <div
+                  v-for="item in items.lockedItems.value"
+                  :key="item.id"
+                  class="p-3 bg-neutral-800/30 border border-neutral-700/30 rounded-sm opacity-60"
+                >
+                  <div class="flex items-start justify-between">
+                    <div>
+                      <div class="text-sm font-medium text-neutral-300">{{ item.name }}</div>
+                      <div class="text-xs text-neutral-500">{{ item.description }}</div>
+                    </div>
+                    <span class="px-2 py-0.5 bg-neutral-700/30 text-neutral-500 rounded text-xs">{{ item.category }}</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Debug: Test Item Reception -->
+            <section v-if="showDebugGrid" class="space-y-3">
+              <h3 class="section-heading">Debug: Simulate Items</h3>
+              <div class="bg-neutral-800/30 rounded-sm p-4 space-y-2">
+                <p class="text-xs text-neutral-400 mb-3">Click to simulate receiving an item from Archipelago:</p>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="item in items.ITEM_REGISTRY"
+                    :key="item.id"
+                    class="px-2 py-1 text-xs rounded transition-colors"
+                    :class="
+                      items.hasItem(item.id) ? 'bg-lime-500/20 text-lime-300 cursor-default' : 'bg-neutral-700 hover:bg-neutral-600 text-neutral-200'
+                    "
+                    :disabled="items.hasItem(item.id)"
+                    @click="debugReceiveItem(item.id)"
+                  >
+                    {{ item.name }}
+                  </button>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       </div>

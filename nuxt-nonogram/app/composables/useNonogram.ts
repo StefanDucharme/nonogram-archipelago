@@ -27,12 +27,7 @@ export function useNonogram() {
   const colClues = computed(() => computeColClues(solution.value));
 
   // Just the numbers for display
-  const rowClueNumbers = computed(() => {
-    const result = rowClues.value.map(clueNumbers);
-    console.log('Computing rowClueNumbers from solution:', JSON.stringify(solution.value[0]));
-    console.log('rowClueNumbers result:', JSON.stringify(result));
-    return result;
-  });
+  const rowClueNumbers = computed(() => rowClues.value.map(clueNumbers));
   const colClueNumbers = computed(() => colClues.value.map(clueNumbers));
 
   const solved = computed(() => isSolved(player.value, solution.value));

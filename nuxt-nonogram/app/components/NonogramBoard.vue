@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+  import { ref, computed, onMounted, onUnmounted } from 'vue';
   import type { Cell, Mark } from '~/utils/nonogram';
 
   const props = defineProps<{
@@ -16,6 +16,7 @@
     isColClueComplete?: (colIndex: number, clueIndex: number) => boolean;
     showDebugGrid?: boolean;
     dragPainting?: boolean;
+    hideHints?: boolean;
   }>();
 
   const emit = defineEmits<{
@@ -49,16 +50,6 @@
 
   const colDepth = computed(() => Math.max(1, ...props.colClues.map((c) => c.length)));
   const rowDepth = computed(() => Math.max(1, ...props.rowClues.map((r) => r.length)));
-
-  // Debug: Log what hints are being used
-  watch(
-    () => props.rowClues,
-    (newClues) => {
-      console.log('NonogramBoard received rowClues:', JSON.stringify(newClues));
-      console.log('Row 1 clues:', newClues[0]);
-    },
-    { immediate: true, deep: true },
-  );
 
   const MAX_BOARD_PX = 520;
 
@@ -343,7 +334,7 @@
                   const clueArray = colClues[c - 1];
                   const clueIndex = i - 1 - (colDepth - clueArray.length);
                   if (clueIndex >= 0 && clueIndex < clueArray.length) {
-                    return clueArray[clueIndex];
+                    return props.hideHints ? '?' : clueArray[clueIndex];
                   }
                   return '';
                 })()
@@ -385,7 +376,7 @@
                   const clueArray = rowClues[r - 1];
                   const clueIndex = i - 1 - (rowDepth - clueArray.length);
                   if (clueIndex >= 0 && clueIndex < clueArray.length) {
-                    return clueArray[clueIndex];
+                    return props.hideHints ? '?' : clueArray[clueIndex];
                   }
                   return '';
                 })()
