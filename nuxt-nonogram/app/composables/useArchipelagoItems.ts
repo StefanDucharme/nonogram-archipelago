@@ -35,6 +35,9 @@ export const AP_ITEMS = {
   // Coins (8003xxx range)
   COINS_BUNDLE: 8003001, // Grants coins
 
+  // Consumables (8004xxx range)
+  SOLVE_RANDOM_CELL: 8004001, // Solves a random unsolved cell
+
   // Future items can be added here
   // UNLOCK_LARGER_PUZZLES: 8004001,
   // HINT_TOKEN: 8005001,
@@ -87,27 +90,27 @@ export const ITEM_REGISTRY: ItemDefinition[] = [
     category: 'settings',
   },
   {
-    id: AP_ITEMS.UNLOCK_CHECK_MISTAKES,
-    name: 'Check for Mistakes',
-    description: 'Unlock the Check for Mistakes button',
-    category: 'settings',
-  },
-  {
     id: AP_ITEMS.UNLOCK_HINTS,
-    name: 'Reveal Hints',
-    description: 'Unlock visibility of hint numbers (no more question marks)',
-    category: 'hints',
+    name: 'Hint Reveal',
+    description: 'Reveals 1 additional random row or column hint per puzzle',
+    category: 'consumable',
   },
   {
     id: AP_ITEMS.EXTRA_LIFE,
     name: 'Extra Life',
     description: 'Permanently increases your maximum lives by 1',
-    category: 'progression',
+    category: 'consumable',
   },
   {
     id: AP_ITEMS.COINS_BUNDLE,
     name: 'Coin Bundle',
     description: 'Grants 10 coins to spend in the shop',
+    category: 'consumable',
+  },
+  {
+    id: AP_ITEMS.SOLVE_RANDOM_CELL,
+    name: 'Random Cell Solve',
+    description: 'Automatically solves one random unsolved cell',
     category: 'consumable',
   },
 ];
@@ -125,22 +128,32 @@ export function useArchipelagoItems() {
     greyHints: false,
     dragPaint: false,
     checkMistakes: false,
-    hints: false,
   });
 
   // Whether we're in Archipelago mode (locked) or free play (unlocked)
   const archipelagoMode = ref(false);
+
+  // Hint reveal system - tracks how many row/col hints to reveal per puzzle
+  const hintReveals = ref(0); // Number of hints revealed (permanent, stackable)
+  const revealedRows = ref<Set<number>>(new Set()); // Which row hints are revealed for current puzzle
+  const revealedCols = ref<Set<number>>(new Set()); // Which col hints are revealed for current puzzle
+  const allHintsRevealed = computed(() => !archipelagoMode.value); // In free play, all hints shown
 
   // Lives system
   const baseLives = ref(3); // Default starting lives per puzzle (configurable)
   const extraLives = ref(0); // Permanent extra lives from AP rewards
   const currentLives = ref(baseLives.value); // Current lives for the puzzle
   const maxLives = computed(() => baseLives.value + extraLives.value);
+  const unlimitedLives = ref(false); // Setting for unlimited lives (independent of AP mode)
 
   // Coins system
   const startingCoins = ref(0); // Starting coins (configurable)
   const coins = ref(0); // Current coins
-  const COINS_PER_BUNDLE = 10; // Coins received from AP bundle
+  const coinsPerBundle = ref(10); // Coins received from AP bundle (configurable)
+  const unlimitedCoins = ref(false); // Setting for unlimited coins (independent of AP mode)
+
+  // Random cell solve tokens
+  const randomCellSolves = ref(0); // Number of random cell solves available
 
   // Track received items for the UI
   const receivedItems = ref<number[]>([]);
@@ -157,8 +170,9 @@ export function useArchipelagoItems() {
 
   // Receive an item from Archipelago
   function receiveItem(itemId: number): string | null {
-    // Don't process duplicates (except for stackable items like EXTRA_LIFE)
-    const isStackable = itemId === AP_ITEMS.EXTRA_LIFE;
+    // Don't process duplicates (except for stackable items)
+    const isStackable =
+      itemId === AP_ITEMS.EXTRA_LIFE || itemId === AP_ITEMS.UNLOCK_HINTS || itemId === AP_ITEMS.COINS_BUNDLE || itemId === AP_ITEMS.SOLVE_RANDOM_CELL;
     if (!isStackable && receivedItems.value.includes(itemId)) {
       return null;
     }
@@ -184,14 +198,17 @@ export function useArchipelagoItems() {
         unlocks.checkMistakes = true;
         break;
       case AP_ITEMS.UNLOCK_HINTS:
-        unlocks.hints = true;
+        hintReveals.value += 1;
         break;
       case AP_ITEMS.EXTRA_LIFE:
         extraLives.value += 1;
         currentLives.value = Math.min(currentLives.value + 1, maxLives.value);
         break;
       case AP_ITEMS.COINS_BUNDLE:
-        coins.value += COINS_PER_BUNDLE;
+        coins.value += coinsPerBundle.value;
+        break;
+      case AP_ITEMS.SOLVE_RANDOM_CELL:
+        randomCellSolves.value += 1;
         break;
       default:
         console.warn(`Unknown item received: ${itemId}`);
@@ -209,11 +226,14 @@ export function useArchipelagoItems() {
     unlocks.greyHints = false;
     unlocks.dragPaint = false;
     unlocks.checkMistakes = false;
-    unlocks.hints = false;
     receivedItems.value = [];
     extraLives.value = 0;
     currentLives.value = baseLives.value;
     coins.value = startingCoins.value;
+    hintReveals.value = 0;
+    revealedRows.value = new Set();
+    revealedCols.value = new Set();
+    randomCellSolves.value = 0;
   }
 
   // Disable Archipelago mode (unlock everything for free play)
@@ -224,10 +244,9 @@ export function useArchipelagoItems() {
     unlocks.greyHints = true;
     unlocks.dragPaint = true;
     unlocks.checkMistakes = true;
-    unlocks.hints = true;
-    // In free play, lives are effectively unlimited (set high)
-    currentLives.value = 999;
-    coins.value = 999; // Unlimited coins in free play
+    // Reset resources (unlimited settings handle display)
+    currentLives.value = baseLives.value;
+    coins.value = startingCoins.value;
   }
 
   // Reset lives for a new puzzle (keeps extra lives from AP)
@@ -237,7 +256,7 @@ export function useArchipelagoItems() {
 
   // Lose a life (returns true if still alive, false if game over)
   function loseLife(): boolean {
-    if (!archipelagoMode.value) return true; // Unlimited lives in free play
+    if (unlimitedLives.value) return true; // Unlimited lives enabled
     if (currentLives.value > 0) {
       currentLives.value -= 1;
     }
@@ -251,8 +270,10 @@ export function useArchipelagoItems() {
 
   // Spend coins (returns true if successful, false if not enough)
   function spendCoins(amount: number): boolean {
-    if (coins.value >= amount) {
-      coins.value -= amount;
+    if (unlimitedCoins.value || coins.value >= amount) {
+      if (!unlimitedCoins.value) {
+        coins.value -= amount;
+      }
       return true;
     }
     return false;
@@ -263,6 +284,76 @@ export function useArchipelagoItems() {
     if (archipelagoMode.value) {
       enableArchipelagoMode();
     }
+  }
+
+  // Select which hints to reveal for a new puzzle
+  function selectRevealedHints(totalRows: number, totalCols: number) {
+    revealedRows.value = new Set();
+    revealedCols.value = new Set();
+
+    if (!archipelagoMode.value) return; // In free play, all hints shown via allHintsRevealed
+
+    const totalHints = totalRows + totalCols;
+    const hintsToReveal = Math.min(hintReveals.value, totalHints);
+
+    // Create array of all possible hint indices (0 to totalRows-1 for rows, totalRows to totalRows+totalCols-1 for cols)
+    const allIndices: Array<{ type: 'row' | 'col'; index: number }> = [];
+    for (let i = 0; i < totalRows; i++) {
+      allIndices.push({ type: 'row', index: i });
+    }
+    for (let i = 0; i < totalCols; i++) {
+      allIndices.push({ type: 'col', index: i });
+    }
+
+    // Shuffle using Fisher-Yates
+    for (let i = allIndices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = allIndices[i]!;
+      allIndices[i] = allIndices[j]!;
+      allIndices[j] = temp;
+    }
+
+    for (let i = 0; i < hintsToReveal; i++) {
+      const hint = allIndices[i];
+      if (hint) {
+        if (hint.type === 'row') {
+          revealedRows.value.add(hint.index);
+        } else {
+          revealedCols.value.add(hint.index);
+        }
+      }
+    }
+  }
+
+  // Check if a specific row hint is revealed
+  function isRowHintRevealed(rowIndex: number): boolean {
+    if (!archipelagoMode.value) return true; // Free play shows all
+    return revealedRows.value.has(rowIndex);
+  }
+
+  // Check if a specific col hint is revealed
+  function isColHintRevealed(colIndex: number): boolean {
+    if (!archipelagoMode.value) return true; // Free play shows all
+    return revealedCols.value.has(colIndex);
+  }
+
+  // Use a random cell solve token (returns true if had tokens)
+  function useRandomCellSolve(): boolean {
+    if (randomCellSolves.value > 0) {
+      randomCellSolves.value -= 1;
+      return true;
+    }
+    return false;
+  }
+
+  // Buy a random cell solve from the shop
+  const RANDOM_CELL_SOLVE_COST = 5;
+  function buyRandomCellSolve(): boolean {
+    if (spendCoins(RANDOM_CELL_SOLVE_COST)) {
+      randomCellSolves.value += 1;
+      return true;
+    }
+    return false;
   }
 
   // Get list of locked items (for UI display)
@@ -289,11 +380,23 @@ export function useArchipelagoItems() {
     maxLives,
     extraLives,
     baseLives,
+    unlimitedLives,
 
     // Coins
     coins,
     startingCoins,
-    COINS_PER_BUNDLE,
+    coinsPerBundle,
+    unlimitedCoins,
+
+    // Hints
+    hintReveals,
+    revealedRows,
+    revealedCols,
+    allHintsRevealed,
+
+    // Random Cell Solves
+    randomCellSolves,
+    RANDOM_CELL_SOLVE_COST,
 
     // Item registry
     ITEM_REGISTRY,
@@ -311,6 +414,11 @@ export function useArchipelagoItems() {
     loseLife,
     addCoins,
     spendCoins,
+    selectRevealedHints,
+    isRowHintRevealed,
+    isColHintRevealed,
+    useRandomCellSolve,
+    buyRandomCellSolve,
 
     // Computed
     lockedItems,

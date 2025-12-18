@@ -49,8 +49,7 @@
   const effectiveAutoX = computed(() => autoX.value && items.unlocks.autoX);
   const effectiveGreyHints = computed(() => greyCompletedHints.value && items.unlocks.greyHints);
   const effectiveDragPainting = computed(() => dragPainting.value && items.unlocks.dragPaint);
-  const hintsHidden = computed(() => !items.unlocks.hints);
-  const gameOver = computed(() => items.archipelagoMode.value && items.currentLives.value <= 0);
+  const gameOver = computed(() => !items.unlimitedLives.value && items.currentLives.value <= 0);
 
   // Track completed rows/columns to award coins only once
   const completedRows = ref<Set<number>>(new Set());
@@ -101,29 +100,110 @@
     }
   }
 
-  // Handle cell changes - check for mistakes
+  // Handle cell changes - award coins for correct moves
   function handleCellChange(r: number, c: number, mode: 'fill' | 'x' | 'erase') {
     // Block X placement if not unlocked
     if (mode === 'x' && !canPlaceX.value) {
       return; // Silently ignore X placement attempts
     }
 
-    // First apply the change
+    if (!solution.value) return;
+
+    const currentState = player.value[r]?.[c];
+    const shouldBeFilled = solution.value[r]?.[c] === 1;
+
+    // Block erasing correct cells
+    if (mode === 'erase') {
+      const wasCorrectFill = currentState === 'fill' && shouldBeFilled;
+      const wasCorrectX = currentState === 'x' && !shouldBeFilled;
+      if (wasCorrectFill || wasCorrectX) {
+        return; // Can't erase correct cells
+      }
+    }
+
+    // Apply the change
     cycleCell(r, c, mode);
 
-    // Then check for mistake (only for fill actions)
-    if (mode === 'fill' && solution.value) {
-      const shouldBeFilled = solution.value[r]?.[c] === 1;
-      const playerFilled = player.value[r]?.[c] === 'fill';
+    // Check result after change
+    const newState = player.value[r]?.[c];
 
-      // If player filled a cell that should be empty, it's a mistake
-      if (playerFilled && !shouldBeFilled) {
-        items.loseLife();
+    // Award coins for correct placements
+    if (mode === 'fill' && newState === 'fill') {
+      if (shouldBeFilled) {
+        items.addCoins(1); // Correct fill
+      } else {
+        items.loseLife(); // Mistake
+      }
+    } else if (mode === 'x' && newState === 'x') {
+      if (!shouldBeFilled) {
+        items.addCoins(1); // Correct X
       }
     }
 
     // Check for newly completed lines
     checkLineCompletions();
+  }
+
+  // Solve a random unsolved cell
+  function solveRandomCell() {
+    if (!solution.value) return false;
+
+    // Find all unsolved cells
+    const unsolvedCells: Array<{ r: number; c: number }> = [];
+    for (let r = 0; r < rows.value; r++) {
+      for (let c = 0; c < cols.value; c++) {
+        const currentState = player.value[r]?.[c];
+        const shouldBeFilled = solution.value[r]?.[c] === 1;
+
+        // Cell is unsolved if it's empty, or filled wrong, or x'd wrong
+        if (currentState === 'empty') {
+          unsolvedCells.push({ r, c });
+        } else if (currentState === 'fill' && !shouldBeFilled) {
+          unsolvedCells.push({ r, c });
+        } else if (currentState === 'x' && shouldBeFilled) {
+          unsolvedCells.push({ r, c });
+        }
+      }
+    }
+
+    if (unsolvedCells.length === 0) return false;
+
+    // Pick random cell
+    const randomIndex = Math.floor(Math.random() * unsolvedCells.length);
+    const cell = unsolvedCells[randomIndex];
+    if (!cell) return false;
+
+    const shouldBeFilled = solution.value[cell.r]?.[cell.c] === 1;
+
+    // Set the correct value (use cycleCell to set it)
+    // First clear it if needed
+    if (player.value[cell.r]?.[cell.c] !== 'empty') {
+      cycleCell(cell.r, cell.c, 'erase');
+    }
+
+    if (shouldBeFilled) {
+      cycleCell(cell.r, cell.c, 'fill');
+    } else {
+      cycleCell(cell.r, cell.c, 'x');
+    }
+
+    // Check for newly completed lines
+    checkLineCompletions();
+    return true;
+  }
+
+  // Use a random cell solve token
+  function useRandomCellSolve() {
+    if (items.useRandomCellSolve()) {
+      solveRandomCell();
+    }
+  }
+
+  // Buy and use a random cell solve from shop
+  function buyAndUseRandomCellSolve() {
+    if (items.buyRandomCellSolve()) {
+      solveRandomCell();
+    }
   }
 
   function checkAll() {
@@ -185,6 +265,8 @@
     // Reset completed line tracking
     completedRows.value = new Set();
     completedCols.value = new Set();
+    // Select which hints to reveal for this puzzle
+    items.selectRevealedHints(rows.value, cols.value);
   }
 
   // When Archipelago mode is enabled, generate a new puzzle so user doesn't see the hints
@@ -196,6 +278,63 @@
       }
     },
   );
+
+  // Debug functions
+  function debugHints() {
+    if (!solution.value) return;
+    console.log('=== HINT DEBUG ===');
+    console.log('Solution grid:');
+    solution.value.forEach((row, i) => {
+      console.log(`Row ${i + 1}:`, row.join(' '));
+    });
+
+    console.log('\nCalculated row hints:');
+    rowClueNumbers.value.forEach((clues, i) => {
+      console.log(`Row ${i + 1}:`, clues);
+    });
+
+    console.log('\nCalculated column hints:');
+    colClueNumbers.value.forEach((clues, i) => {
+      console.log(`Col ${i + 1}:`, clues);
+    });
+    console.log('==================');
+  }
+
+  function copyDebugInfo() {
+    if (!solution.value) {
+      console.log('No solution available');
+      return;
+    }
+
+    let output = '=== DEBUG INFO ===\n\n';
+    output += 'Solution rows (0=empty, 1=fill) → rowClues prop:\n';
+    solution.value.forEach((row, r) => {
+      output += `R${r + 1}: [${row.join(',')}] → [${rowClueNumbers.value[r]?.join(', ') || '?'}]\n`;
+    });
+
+    output += '\nColumn hints (colClues prop):\n';
+    colClueNumbers.value.forEach((clues, c) => {
+      output += `C${c + 1}: [${clues.join(', ')}]\n`;
+    });
+
+    console.log('Debug output:', output);
+
+    try {
+      navigator.clipboard
+        .writeText(output)
+        .then(() => {
+          console.log('Copied to clipboard!');
+          alert('Debug info copied to clipboard!');
+        })
+        .catch((err) => {
+          console.error('Clipboard write failed:', err);
+          alert('Failed to copy. Check console for debug info.');
+        });
+    } catch (err) {
+      console.error('Clipboard error:', err);
+      alert('Failed to copy. Check console for debug info.');
+    }
+  }
 </script>
 
 <template>
@@ -213,22 +352,18 @@
     </div>
   </div>
 
-  <div class="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
-    <div class="flex flex-1">
+  <div class="h-screen bg-neutral-950 text-neutral-100 flex flex-col overflow-hidden">
+    <div class="flex flex-1 min-h-0">
       <!-- Main content area -->
-      <div class="flex-1 max-w-6xl mx-auto p-6">
-        <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8">
-          <div class="space-y-1">
-            <h1 class="text-3xl font-bold">Archipelago Nonogram</h1>
-            <p class="text-sm text-neutral-400">Interactive puzzle game with multiplayer support</p>
-          </div>
-        </header>
-
+      <div class="flex-1 px-6 overflow-auto">
         <!-- LEFT: board -->
         <div class="glass-card p-6 animate-fade-in">
           <!-- Status bar: Lives, Coins-->
           <div class="flex items-center justify-between mb-4 pb-4 border-b border-neutral-700/50">
             <div class="flex items-center gap-6">
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-neutral-400">Archipelago Nonogram</span>
+              </div>
               <!-- Lives Display -->
               <div class="flex items-center gap-2">
                 <span class="text-sm text-neutral-400">Lives:</span>
@@ -241,14 +376,14 @@
                   >
                     ♥
                   </span>
-                  <span v-if="!items.archipelagoMode.value" class="text-xs text-neutral-500 ml-1">(∞)</span>
+                  <span v-if="items.unlimitedLives.value" class="text-xs text-neutral-500 ml-1">(∞)</span>
                 </div>
               </div>
               <!-- Coins Display -->
               <div class="flex items-center gap-2">
                 <span class="text-sm text-neutral-400">Coins:</span>
                 <span class="text-lg font-bold text-amber-400">🪙 {{ items.coins.value }}</span>
-                <span v-if="!items.archipelagoMode.value" class="text-xs text-neutral-500">(∞)</span>
+                <span v-if="items.unlimitedCoins.value" class="text-xs text-neutral-500">(∞)</span>
               </div>
             </div>
           </div>
@@ -285,7 +420,7 @@
 
           <div class="flex gap-6">
             <!-- Grid -->
-            <div class="flex-shrink-0">
+            <div class="shrink-0">
               <NonogramBoard
                 :rows="rows"
                 :cols="cols"
@@ -300,40 +435,77 @@
                 :is-col-clue-complete="isColClueComplete"
                 :show-debug-grid="showDebugGrid"
                 :drag-painting="effectiveDragPainting"
-                :hide-hints="hintsHidden"
+                :is-row-hint-revealed="items.isRowHintRevealed"
+                :is-col-hint-revealed="items.isColHintRevealed"
                 @cell="handleCellChange"
               />
             </div>
 
-            <!-- Active Abilities Panel -->
-            <div class="flex-shrink-0 w-48">
-              <div class="bg-neutral-800/40 rounded-sm p-4 border border-neutral-700/50">
-                <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">Active Abilities</h3>
-                <div class="space-y-2">
-                  <!-- Place X Markers -->
-                  <div class="flex items-center gap-2 text-sm" :class="items.unlocks.placeX ? 'text-lime-400' : 'text-neutral-500'">
-                    <span>{{ items.unlocks.placeX ? '✓' : '🔒' }}</span>
-                    <span>Place X Markers</span>
-                  </div>
-                  <!-- Auto X -->
-                  <div class="flex items-center gap-2 text-sm" :class="effectiveAutoX ? 'text-lime-400' : 'text-neutral-500'">
-                    <span>{{ items.unlocks.autoX ? (autoX ? '✓' : '○') : '🔒' }}</span>
-                    <span>Auto-X Lines</span>
-                  </div>
-                  <!-- Grey Hints -->
-                  <div class="flex items-center gap-2 text-sm" :class="effectiveGreyHints ? 'text-lime-400' : 'text-neutral-500'">
-                    <span>{{ items.unlocks.greyHints ? (greyCompletedHints ? '✓' : '○') : '🔒' }}</span>
-                    <span>Grey Hints</span>
-                  </div>
-                  <!-- Drag Paint -->
-                  <div class="flex items-center gap-2 text-sm" :class="effectiveDragPainting ? 'text-lime-400' : 'text-neutral-500'">
-                    <span>{{ items.unlocks.dragPaint ? (dragPainting ? '✓' : '○') : '🔒' }}</span>
-                    <span>Drag Paint</span>
+            <!-- Solution Grid (debug) -->
+            <div v-if="showDebugGrid && solution" class="shrink-0">
+              <div class="bg-neutral-800/40 rounded-sm p-4 border border-neutral-700/50 select-text">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Solution (Debug)</h3>
+                  <div class="flex gap-2">
+                    <button @click="copyDebugInfo" class="px-2 py-1 text-xs bg-neutral-700 hover:bg-neutral-600 text-neutral-200 rounded">
+                      Copy Debug
+                    </button>
+                    <button @click="debugHints" class="px-2 py-1 text-xs bg-neutral-700 hover:bg-neutral-600 text-neutral-200 rounded">
+                      Log Hints
+                    </button>
                   </div>
                 </div>
-                <div class="mt-3 pt-3 border-t border-neutral-700/50 text-xs text-neutral-500">
-                  <span v-if="items.archipelagoMode.value">Unlock abilities via Archipelago</span>
-                  <span v-else>Free Play - All unlocked</span>
+
+                <!-- Visual grid -->
+                <div class="flex mb-4">
+                  <!-- Row numbers -->
+                  <div class="flex flex-col mr-1">
+                    <!-- Spacer for column header row -->
+                    <div class="h-3 mb-1"></div>
+                    <div v-for="r in rows" :key="`row-num-${r}`" class="h-3 text-[8px] text-neutral-500 flex items-center justify-end pr-1">
+                      {{ r }}
+                    </div>
+                  </div>
+                  <!-- Grid -->
+                  <div>
+                    <!-- Column numbers -->
+                    <div class="flex mb-1">
+                      <div v-for="c in cols" :key="`col-num-${c}`" class="w-3 text-[8px] text-neutral-500 text-center">
+                        {{ c }}
+                      </div>
+                    </div>
+                    <div
+                      class="grid gap-0 border border-neutral-600"
+                      :style="{
+                        gridTemplateColumns: `repeat(${cols}, 12px)`,
+                        gridTemplateRows: `repeat(${rows}, 12px)`,
+                      }"
+                    >
+                      <div v-for="(row, r) in solution" :key="`debug-row-${r}`" class="contents">
+                        <div
+                          v-for="(cell, c) in row"
+                          :key="`debug-${r}-${c}`"
+                          class="border-r border-b border-neutral-700"
+                          :class="cell === 1 ? 'bg-neutral-400' : 'bg-transparent'"
+                          :style="{
+                            borderRightWidth: c === cols - 1 ? '0' : '1px',
+                            borderBottomWidth: r === rows - 1 ? '0' : '1px',
+                          }"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Show each row's raw solution data + computed hints side by side -->
+                <div class="text-[10px] text-neutral-400 font-mono space-y-1">
+                  <div class="text-neutral-500 mb-2">Row data: [solution cells] → [computed hints]</div>
+                  <div v-for="(row, r) in solution" :key="`debug-row-data-${r}`" class="flex items-center gap-2">
+                    <span class="text-neutral-500 w-8">R{{ r + 1 }}:</span>
+                    <span class="text-neutral-300">[{{ row.join(',') }}]</span>
+                    <span class="text-neutral-500">→</span>
+                    <span class="text-amber-400">[{{ rowClueNumbers[r]?.join(', ') || '?' }}]</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -343,9 +515,47 @@
 
       <!-- RIGHT: sidebar attached to right side -->
       <div
-        class="w-96 bg-neutral-900/95 backdrop-blur-lg border-l border-neutral-700 flex flex-col min-h-screen animate-fade-in"
+        class="w-96 shrink-0 bg-neutral-900/95 backdrop-blur-lg border-l border-neutral-700 flex flex-col h-full animate-fade-in"
         style="box-shadow: -8px 0 32px rgba(0, 0, 0, 0.3)"
       >
+        <!-- Active Abilities Panel - sticky at top -->
+        <div class="shrink-0 p-4 border-b border-neutral-700/50 bg-neutral-900/95">
+          <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">Active Abilities</h3>
+          <div class="space-y-2">
+            <!-- Place X Markers -->
+            <div class="flex items-center gap-2 text-sm" :class="items.unlocks.placeX ? 'text-lime-400' : 'text-neutral-500'">
+              <span>{{ items.unlocks.placeX ? '✓' : '🔒' }}</span>
+              <span>Place X Markers</span>
+            </div>
+            <!-- Auto X -->
+            <div class="flex items-center gap-2 text-sm" :class="effectiveAutoX ? 'text-lime-400' : 'text-neutral-500'">
+              <span>{{ items.unlocks.autoX ? (autoX ? '✓' : '○') : '🔒' }}</span>
+              <span>Auto-X Lines</span>
+            </div>
+            <!-- Grey Hints -->
+            <div class="flex items-center gap-2 text-sm" :class="effectiveGreyHints ? 'text-lime-400' : 'text-neutral-500'">
+              <span>{{ items.unlocks.greyHints ? (greyCompletedHints ? '✓' : '○') : '🔒' }}</span>
+              <span>Grey Hints</span>
+            </div>
+            <!-- Drag Paint -->
+            <div class="flex items-center gap-2 text-sm" :class="effectiveDragPainting ? 'text-lime-400' : 'text-neutral-500'">
+              <span>{{ items.unlocks.dragPaint ? (dragPainting ? '✓' : '○') : '🔒' }}</span>
+              <span>Drag Paint</span>
+            </div>
+            <!-- Hint Reveals -->
+            <div
+              class="flex items-center gap-2 text-sm"
+              :class="items.hintReveals.value > 0 || !items.archipelagoMode.value ? 'text-lime-400' : 'text-neutral-500'"
+            >
+              <span>{{ items.archipelagoMode.value ? items.hintReveals.value : '∞' }}</span>
+              <span>Hints Revealed</span>
+            </div>
+          </div>
+          <div class="mt-3 pt-3 border-t border-neutral-700/50 text-xs text-neutral-500">
+            <span v-if="items.archipelagoMode.value">Unlock abilities via Archipelago</span>
+            <span v-else>Free Play - All unlocked</span>
+          </div>
+        </div>
         <!-- tab bar -->
         <div class="flex border-b border-neutral-700/50">
           <button class="tab-button" :class="{ active: activeTab === 'archipelago' }" @click="activeTab = 'archipelago'">Archipelago</button>
@@ -396,18 +606,30 @@
 
             <!-- Starting Resources -->
             <section class="space-y-3">
-              <h3 class="section-heading">Starting Resources</h3>
+              <h3 class="section-heading">Resources</h3>
               <div class="bg-neutral-800/30 rounded-sm p-4 space-y-4">
-                <div class="flex items-center justify-between">
-                  <label for="starting-lives" class="text-sm text-neutral-300">Starting Lives</label>
-                  <input
-                    id="starting-lives"
-                    type="number"
-                    min="1"
-                    max="10"
-                    class="input-field w-20 text-center text-sm"
-                    v-model.number="items.baseLives.value"
-                  />
+                <!-- Unlimited toggles -->
+                <label class="flex items-center gap-3 cursor-pointer group">
+                  <input type="checkbox" v-model="items.unlimitedLives.value" class="checkbox-field" />
+                  <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Unlimited Lives</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer group">
+                  <input type="checkbox" v-model="items.unlimitedCoins.value" class="checkbox-field" />
+                  <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Unlimited Coins</span>
+                </label>
+
+                <div class="border-t border-neutral-700/50 pt-4">
+                  <div class="flex items-center justify-between">
+                    <label for="starting-lives" class="text-sm text-neutral-300">Starting Lives</label>
+                    <input
+                      id="starting-lives"
+                      type="number"
+                      min="1"
+                      max="10"
+                      class="input-field w-20 text-center text-sm"
+                      v-model.number="items.baseLives.value"
+                    />
+                  </div>
                 </div>
                 <div class="flex items-center justify-between">
                   <label for="starting-coins" class="text-sm text-neutral-300">Starting Coins</label>
@@ -429,6 +651,17 @@
                     max="10"
                     class="input-field w-20 text-center text-sm"
                     v-model.number="coinsPerLine"
+                  />
+                </div>
+                <div class="flex items-center justify-between">
+                  <label for="coins-per-bundle" class="text-sm text-neutral-300">Coins per Bundle</label>
+                  <input
+                    id="coins-per-bundle"
+                    type="number"
+                    min="1"
+                    max="50"
+                    class="input-field w-20 text-center text-sm"
+                    v-model.number="items.coinsPerBundle.value"
                   />
                 </div>
                 <div v-if="items.extraLives.value > 0" class="text-xs text-lime-400">+{{ items.extraLives.value }} extra lives from Archipelago</div>
@@ -638,10 +871,73 @@
           <div v-else class="space-y-6">
             <div class="flex items-center gap-3">
               <div>
-                <h2 class="font-semibold text-neutral-100">Items & Unlocks</h2>
-                <p class="text-xs text-neutral-400">Archipelago items and unlock status</p>
+                <h2 class="font-semibold text-neutral-100">Shop & Items</h2>
+                <p class="text-xs text-neutral-400">Spend coins and use items</p>
               </div>
             </div>
+
+            <!-- Current Resources -->
+            <section class="space-y-3">
+              <h3 class="section-heading">Your Resources</h3>
+              <div class="bg-neutral-800/30 rounded-sm p-4">
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">🪙</span>
+                    <div>
+                      <div class="text-lg font-bold text-amber-400">{{ items.coins.value }}</div>
+                      <div class="text-xs text-neutral-500">Coins</div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">🎯</span>
+                    <div>
+                      <div class="text-lg font-bold text-cyan-400">{{ items.randomCellSolves.value }}</div>
+                      <div class="text-xs text-neutral-500">Cell Solves</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Use Items -->
+            <section class="space-y-3">
+              <h3 class="section-heading">Use Items</h3>
+              <div class="bg-neutral-800/30 rounded-sm p-4 space-y-3">
+                <button
+                  class="w-full px-4 py-3 rounded text-sm font-medium transition-colors flex items-center justify-between"
+                  :class="
+                    items.randomCellSolves.value > 0
+                      ? 'bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30'
+                      : 'bg-neutral-700/30 text-neutral-500 cursor-not-allowed'
+                  "
+                  :disabled="items.randomCellSolves.value <= 0"
+                  @click="useRandomCellSolve()"
+                >
+                  <span>🎯 Solve Random Cell</span>
+                  <span class="text-xs opacity-70">{{ items.randomCellSolves.value }} available</span>
+                </button>
+              </div>
+            </section>
+
+            <!-- Shop -->
+            <section class="space-y-3">
+              <h3 class="section-heading">Shop</h3>
+              <div class="bg-neutral-800/30 rounded-sm p-4 space-y-3">
+                <button
+                  class="w-full px-4 py-3 rounded text-sm font-medium transition-colors flex items-center justify-between"
+                  :class="
+                    items.coins.value >= items.RANDOM_CELL_SOLVE_COST
+                      ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                      : 'bg-neutral-700/30 text-neutral-500 cursor-not-allowed'
+                  "
+                  :disabled="items.coins.value < items.RANDOM_CELL_SOLVE_COST"
+                  @click="buyAndUseRandomCellSolve()"
+                >
+                  <span>🎯 Buy & Use Random Cell Solve</span>
+                  <span class="text-xs">🪙 {{ items.RANDOM_CELL_SOLVE_COST }}</span>
+                </button>
+              </div>
+            </section>
 
             <!-- Unlocked Items -->
             <section class="space-y-3">
@@ -700,16 +996,18 @@
                     :key="item.id"
                     class="px-2 py-1 text-xs rounded transition-colors"
                     :class="
-                      items.hasItem(item.id) && item.id !== items.AP_ITEMS.EXTRA_LIFE && item.id !== items.AP_ITEMS.COINS_BUNDLE
+                      items.hasItem(item.id) && ![items.AP_ITEMS.EXTRA_LIFE, items.AP_ITEMS.COINS_BUNDLE, items.AP_ITEMS.UNLOCK_HINTS, items.AP_ITEMS.SOLVE_RANDOM_CELL].includes(item.id as any)
                         ? 'bg-lime-500/20 text-lime-300 cursor-default'
                         : 'bg-neutral-700 hover:bg-neutral-600 text-neutral-200'
                     "
-                    :disabled="items.hasItem(item.id) && item.id !== items.AP_ITEMS.EXTRA_LIFE && item.id !== items.AP_ITEMS.COINS_BUNDLE"
+                    :disabled="items.hasItem(item.id) && ![items.AP_ITEMS.EXTRA_LIFE, items.AP_ITEMS.COINS_BUNDLE, items.AP_ITEMS.UNLOCK_HINTS, items.AP_ITEMS.SOLVE_RANDOM_CELL].includes(item.id as any)"
                     @click="debugReceiveItem(item.id)"
                   >
                     {{ item.name }}
                     <span v-if="item.id === items.AP_ITEMS.EXTRA_LIFE" class="text-lime-400">(+{{ items.extraLives.value }})</span>
                     <span v-if="item.id === items.AP_ITEMS.COINS_BUNDLE" class="text-amber-400">({{ items.coins.value }})</span>
+                    <span v-if="item.id === items.AP_ITEMS.UNLOCK_HINTS" class="text-purple-400">({{ items.hintReveals.value }})</span>
+                    <span v-if="item.id === items.AP_ITEMS.SOLVE_RANDOM_CELL" class="text-cyan-400">({{ items.randomCellSolves.value }})</span>
                   </button>
                 </div>
               </div>
@@ -720,9 +1018,12 @@
     </div>
 
     <!-- Bottom status bar -->
-    <footer class="border-t border-neutral-700/50 bg-neutral-950/90 backdrop-blur-lg">
+    <footer class="shrink-0 border-t border-neutral-700/50 bg-neutral-950/90 backdrop-blur-lg">
       <div class="max-w-6xl mx-auto px-6 py-4">
-        <div class="flex items-center justify-between gap-4">
+        <div class="flex justify-between gap-4">
+          <div class="text-xs text-neutral-400">
+            Left click: fill&nbsp;&nbsp;•&nbsp;&nbsp;Right click: X&nbsp;&nbsp;•&nbsp;&nbsp;Shift+click (or same click used): erase
+          </div>
           <div class="status-indicator">
             <span class="status-dot" :class="statusMeta.dot"></span>
             <span class="text-neutral-400 font-medium">Archipelago</span>

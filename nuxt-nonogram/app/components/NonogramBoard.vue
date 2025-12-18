@@ -16,7 +16,8 @@
     isColClueComplete?: (colIndex: number, clueIndex: number) => boolean;
     showDebugGrid?: boolean;
     dragPainting?: boolean;
-    hideHints?: boolean;
+    isRowHintRevealed?: (rowIndex: number) => boolean;
+    isColHintRevealed?: (colIndex: number) => boolean;
   }>();
 
   const emit = defineEmits<{
@@ -66,63 +67,6 @@
 
   function isThick(i: number) {
     return i > 0 && i % groupSize === 0;
-  }
-
-  // Debug function to check hint calculation
-  function debugHints() {
-    if (!props.solution) return;
-    console.log('=== HINT DEBUG ===');
-    console.log('Solution grid:');
-    props.solution.forEach((row, i) => {
-      console.log(`Row ${i + 1}:`, row.join(' '));
-    });
-
-    console.log('\\nCalculated row hints:');
-    props.rowClues.forEach((clues, i) => {
-      console.log(`Row ${i + 1}:`, clues);
-    });
-
-    console.log('\\nCalculated column hints:');
-    props.colClues.forEach((clues, i) => {
-      console.log(`Col ${i + 1}:`, clues);
-    });
-    console.log('==================');
-  }
-
-  function copyDebugInfo() {
-    if (!props.solution) {
-      console.log('No solution available');
-      return;
-    }
-
-    let output = '=== DEBUG INFO ===\n\n';
-    output += 'Solution rows (0=empty, 1=fill) → rowClues prop:\n';
-    props.solution.forEach((row, r) => {
-      output += `R${r + 1}: [${row.join(',')}] → [${props.rowClues[r]?.join(', ') || '?'}]\n`;
-    });
-
-    output += '\nColumn hints (colClues prop):\n';
-    props.colClues.forEach((clues, c) => {
-      output += `C${c + 1}: [${clues.join(', ')}]\n`;
-    });
-
-    console.log('Debug output:', output);
-
-    try {
-      navigator.clipboard
-        .writeText(output)
-        .then(() => {
-          console.log('Copied to clipboard!');
-          alert('Debug info copied to clipboard!');
-        })
-        .catch((err) => {
-          console.error('Clipboard write failed:', err);
-          alert('Failed to copy. Check console for debug info.');
-        });
-    } catch (err) {
-      console.error('Clipboard error:', err);
-      alert('Failed to copy. Check console for debug info.');
-    }
   }
 
   function onPointerDown(e: PointerEvent, r: number, c: number) {
@@ -334,7 +278,8 @@
                   const clueArray = colClues[c - 1];
                   const clueIndex = i - 1 - (colDepth - clueArray.length);
                   if (clueIndex >= 0 && clueIndex < clueArray.length) {
-                    return props.hideHints ? '?' : clueArray[clueIndex];
+                    const isRevealed = props.isColHintRevealed?.(c - 1) ?? true;
+                    return isRevealed ? clueArray[clueIndex] : '?';
                   }
                   return '';
                 })()
@@ -376,7 +321,8 @@
                   const clueArray = rowClues[r - 1];
                   const clueIndex = i - 1 - (rowDepth - clueArray.length);
                   if (clueIndex >= 0 && clueIndex < clueArray.length) {
-                    return props.hideHints ? '?' : clueArray[clueIndex];
+                    const isRevealed = props.isRowHintRevealed?.(r - 1) ?? true;
+                    return isRevealed ? clueArray[clueIndex] : '?';
                   }
                   return '';
                 })()
@@ -489,71 +435,6 @@
               </span>
             </button>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="mt-3 text-xs text-neutral-400">Left click: fill • Right click: X • Shift+click: erase</div>
-
-    <!-- Debug Solution Grid -->
-    <div v-if="props.showDebugGrid && props.solution" class="mt-6 p-4 bg-neutral-800/20 rounded border border-neutral-700 select-text">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-semibold text-neutral-300">Solution (Debug)</h3>
-        <div class="flex gap-2">
-          <button @click="copyDebugInfo" class="px-2 py-1 text-xs bg-neutral-700 hover:bg-neutral-600 text-neutral-200 rounded">Copy Debug</button>
-          <button @click="debugHints" class="px-2 py-1 text-xs bg-neutral-700 hover:bg-neutral-600 text-neutral-200 rounded">Log Hints</button>
-        </div>
-      </div>
-
-      <!-- Visual grid -->
-      <div class="flex mb-4">
-        <!-- Row numbers -->
-        <div class="flex flex-col mr-1">
-          <!-- Spacer for column header row -->
-          <div class="h-[12px] mb-1"></div>
-          <div v-for="r in rows" :key="`row-num-${r}`" class="h-[12px] text-[8px] text-neutral-500 flex items-center justify-end pr-1">
-            {{ r }}
-          </div>
-        </div>
-        <!-- Grid -->
-        <div>
-          <!-- Column numbers -->
-          <div class="flex mb-1">
-            <div v-for="c in cols" :key="`col-num-${c}`" class="w-[12px] text-[8px] text-neutral-500 text-center">
-              {{ c }}
-            </div>
-          </div>
-          <div
-            class="grid gap-0 border border-neutral-600"
-            :style="{
-              gridTemplateColumns: `repeat(${cols}, 12px)`,
-              gridTemplateRows: `repeat(${rows}, 12px)`,
-            }"
-          >
-            <div v-for="(row, r) in solution" :key="`debug-row-${r}`" class="contents">
-              <div
-                v-for="(cell, c) in row"
-                :key="`debug-${r}-${c}`"
-                class="border-r border-b border-neutral-700"
-                :class="cell === 1 ? 'bg-neutral-400' : 'bg-transparent'"
-                :style="{
-                  borderRightWidth: c === cols - 1 ? '0' : '1px',
-                  borderBottomWidth: r === rows - 1 ? '0' : '1px',
-                }"
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Show each row's raw solution data + computed hints side by side -->
-      <div class="text-[10px] text-neutral-400 font-mono space-y-1">
-        <div class="text-neutral-500 mb-2">Row data: [solution cells] → [computed hints] | displayed hints: [from rowClues prop]</div>
-        <div v-for="(row, r) in solution" :key="`debug-row-data-${r}`" class="flex items-center gap-2">
-          <span class="text-neutral-500 w-8">R{{ r + 1 }}:</span>
-          <span class="text-neutral-300">[{{ row.join(',') }}]</span>
-          <span class="text-neutral-500">→</span>
-          <span class="text-amber-400">[{{ rowClues[r]?.join(', ') || '?' }}]</span>
         </div>
       </div>
     </div>
