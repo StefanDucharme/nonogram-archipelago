@@ -63,30 +63,32 @@
 
   function isRowComplete(r: number): boolean {
     if (!props.solution) return false;
-    // Count filled cells in this row in both player and solution
-    let solutionFills = 0;
-    let playerFills = 0;
 
+    // Check if all cells in the row match the solution
     for (let c = 0; c < props.cols; c++) {
-      if (props.solution[r][c] === 1) solutionFills++;
-      if (props.player[r][c] === 'fill') playerFills++;
+      const shouldBeFilled = props.solution[r][c] === 1;
+      const playerFilled = props.player[r][c] === 'fill';
+
+      if (shouldBeFilled && !playerFilled) return false; // Missing required fill
+      if (!shouldBeFilled && playerFilled) return false; // Wrong fill
     }
 
-    return playerFills === solutionFills && playerFills > 0;
+    return true;
   }
 
   function isColComplete(c: number): boolean {
     if (!props.solution) return false;
-    // Count filled cells in this column in both player and solution
-    let solutionFills = 0;
-    let playerFills = 0;
 
+    // Check if all cells in the column match the solution
     for (let r = 0; r < props.rows; r++) {
-      if (props.solution[r][c] === 1) solutionFills++;
-      if (props.player[r][c] === 'fill') playerFills++;
+      const shouldBeFilled = props.solution[r][c] === 1;
+      const playerFilled = props.player[r][c] === 'fill';
+
+      if (shouldBeFilled && !playerFilled) return false; // Missing required fill
+      if (!shouldBeFilled && playerFilled) return false; // Wrong fill
     }
 
-    return playerFills === solutionFills && playerFills > 0;
+    return true;
   }
 
   function shouldAutoX(r: number, c: number): boolean {
@@ -277,7 +279,7 @@
             <button
               v-for="idx in rows * cols"
               :key="idx"
-              class="flex items-center justify-center transition active:scale-[0.98] hover:bg-white/5"
+              class="flex items-center justify-center transition active:scale-[0.98] hover:bg-neutral-700/30"
               :class="
                 (() => {
                   const r = Math.floor((idx - 1) / cols);
