@@ -117,7 +117,7 @@
 
       <!-- board (grid: rows x cols) -->
       <div class="overflow-hidden">
-        <div class="relative p-2 bg-neutral-950/40">
+        <div class="relative p-2">
           <!-- SVG Grid overlay (pixel-perfect) -->
           <svg
             class="pointer-events-none absolute"
@@ -186,7 +186,7 @@
                     v === 'fill' ? 'bg-neutral-800' : 'bg-transparent',
 
                     // selection: cell itself turns blue (even if empty)
-                    sel ? 'bg-blue-500/25' : '',
+                    sel ? 'bg-neutral-600/30' : '',
 
                     // mistakes (optional)
                     isWrongFill(r, c) ? 'bg-red-500/25' : '',
