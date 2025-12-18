@@ -243,82 +243,106 @@
     return true;
   }
 
-  function isRowPatternUniquelyDetermined(r: number): boolean {
-    if (!props.solution) return false;
+  function getCompletedClueIndices(line: Mark[], clues: number[]): Set<number> {
+    const completedIndices = new Set<number>();
 
-    const playerRow = props.player[r];
-    const clues = props.rowClues[r];
-
-    // If no clues or clue is [0], consider it determined if no fills are present
+    // Handle empty clue case (no fills allowed)
     if (clues.length === 1 && clues[0] === 0) {
-      const result = playerRow.every((cell) => cell !== 'fill');
-      console.log(`Row ${r + 1}: empty clue [0], all non-fill: ${result}`);
-      return result;
+      if (line.every((cell) => cell !== 'fill')) {
+        completedIndices.add(0);
+      }
+      return completedIndices;
     }
 
-    // Calculate the current pattern from filled cells
-    const filledSegments: number[] = [];
-    let currentSegment = 0;
+    // Extract filled segments from the line
+    const segments: Array<{ start: number; length: number }> = [];
+    let currentStart = -1;
 
-    for (let c = 0; c < props.cols; c++) {
-      if (playerRow[c] === 'fill') {
-        currentSegment++;
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] === 'fill') {
+        if (currentStart === -1) {
+          currentStart = i;
+        }
       } else {
-        if (currentSegment > 0) {
-          filledSegments.push(currentSegment);
-          currentSegment = 0;
+        if (currentStart !== -1) {
+          segments.push({
+            start: currentStart,
+            length: i - currentStart,
+          });
+          currentStart = -1;
         }
       }
     }
-    if (currentSegment > 0) {
-      filledSegments.push(currentSegment);
+
+    // Handle segment that goes to the end
+    if (currentStart !== -1) {
+      segments.push({
+        start: currentStart,
+        length: line.length - currentStart,
+      });
     }
 
-    // Check if current pattern matches the clues exactly
-    const matches = filledSegments.length === clues.length && filledSegments.every((seg, i) => seg === clues[i]);
+    // Sort segments by position
+    const sortedSegments = [...segments].sort((a, b) => a.start - b.start);
 
-    console.log(`Row ${r + 1}: clues=${JSON.stringify(clues)}, filled=${JSON.stringify(filledSegments)}, matches=${matches}`);
+    // Match segments to clues in order
+    let clueIndex = 0;
+    for (const segment of sortedSegments) {
+      // Check if this segment is properly isolated
+      if (!isSegmentIsolated(line, segment)) {
+        continue;
+      }
 
-    return matches;
+      // Find the next matching clue
+      while (clueIndex < clues.length) {
+        if (clues[clueIndex] === segment.length) {
+          completedIndices.add(clueIndex);
+          clueIndex++;
+          break;
+        }
+        clueIndex++;
+      }
+    }
+
+    return completedIndices;
+  }
+
+  function isSegmentIsolated(line: Mark[], segment: { start: number; length: number }): boolean {
+    // Check left boundary - segment must be at start of line or preceded by non-fill
+    const leftBounded = segment.start === 0 || line[segment.start - 1] !== 'fill';
+
+    // Check right boundary - segment must be at end of line or followed by non-fill
+    const rightPos = segment.start + segment.length;
+    const rightBounded = rightPos >= line.length || line[rightPos] !== 'fill';
+
+    return leftBounded && rightBounded;
+  }
+
+  function getRowCompletedClues(r: number): Set<number> {
+    return getCompletedClueIndices(props.player[r], props.rowClues[r]);
+  }
+
+  function getColCompletedClues(c: number): Set<number> {
+    const playerCol = props.player.map((row) => row[c]);
+    return getCompletedClueIndices(playerCol, props.colClues[c]);
+  }
+
+  function isRowClueCompleted(r: number, clueIndex: number): boolean {
+    return getRowCompletedClues(r).has(clueIndex);
+  }
+
+  function isColClueCompleted(c: number, clueIndex: number): boolean {
+    return getColCompletedClues(c).has(clueIndex);
+  }
+
+  function isRowPatternUniquelyDetermined(r: number): boolean {
+    const completedClues = getRowCompletedClues(r);
+    return completedClues.size === props.rowClues[r].length;
   }
 
   function isColPatternUniquelyDetermined(c: number): boolean {
-    if (!props.solution) return false;
-
-    const playerCol = props.player.map((row) => row[c]);
-    const clues = props.colClues[c];
-
-    // If no clues or clue is [0], consider it determined if no fills are present
-    if (clues.length === 1 && clues[0] === 0) {
-      const result = playerCol.every((cell) => cell !== 'fill');
-      console.log(`Col ${c + 1}: empty clue [0], all non-fill: ${result}`);
-      return result;
-    }
-
-    // Calculate the current pattern from filled cells
-    const filledSegments: number[] = [];
-    let currentSegment = 0;
-
-    for (let r = 0; r < props.rows; r++) {
-      if (playerCol[r] === 'fill') {
-        currentSegment++;
-      } else {
-        if (currentSegment > 0) {
-          filledSegments.push(currentSegment);
-          currentSegment = 0;
-        }
-      }
-    }
-    if (currentSegment > 0) {
-      filledSegments.push(currentSegment);
-    }
-
-    // Check if current pattern matches the clues exactly
-    const matches = filledSegments.length === clues.length && filledSegments.every((seg, i) => seg === clues[i]);
-
-    console.log(`Col ${c + 1}: clues=${JSON.stringify(clues)}, filled=${JSON.stringify(filledSegments)}, matches=${matches}`);
-
-    return matches;
+    const completedClues = getColCompletedClues(c);
+    return completedClues.size === props.colClues[c].length;
   }
 </script>
 
@@ -355,7 +379,16 @@
               v-for="c in cols"
               :key="`col-${c}-r-${i}`"
               class="flex items-end justify-center text-[11px] leading-none"
-              :class="props.greyCompletedHints && isColPatternUniquelyDetermined(c - 1) ? 'text-neutral-600' : 'text-neutral-300'"
+              :class="
+                (() => {
+                  const clueArray = colClues[c - 1];
+                  const clueIndex = i - (colDepth - clueArray.length);
+                  if (clueIndex >= 0 && clueIndex < clueArray.length) {
+                    return props.greyCompletedHints && isColClueCompleted(c - 1, clueIndex) ? 'text-neutral-600' : 'text-neutral-300';
+                  }
+                  return 'text-neutral-300';
+                })()
+              "
             >
               <!-- show from bottom -->
               {{
@@ -387,7 +420,16 @@
               v-for="i in rowDepth"
               :key="`row-${r}-c-${i}`"
               class="flex items-center justify-end pr-1 text-[11px] leading-none"
-              :class="props.greyCompletedHints && isRowPatternUniquelyDetermined(r - 1) ? 'text-neutral-600' : 'text-neutral-300'"
+              :class="
+                (() => {
+                  const clueArray = rowClues[r - 1];
+                  const clueIndex = i - (rowDepth - clueArray.length);
+                  if (clueIndex >= 0 && clueIndex < clueArray.length) {
+                    return props.greyCompletedHints && isRowClueCompleted(r - 1, clueIndex) ? 'text-neutral-600' : 'text-neutral-300';
+                  }
+                  return 'text-neutral-300';
+                })()
+              "
             >
               <!-- show from right -->
               {{
