@@ -20,7 +20,7 @@
 // ============================================
 export const AP_ITEMS = {
   // Settings Unlocks (8000xxx range)
-  UNLOCK_SHOW_MISTAKES: 8000001,
+  UNLOCK_PLACE_X: 8000001,
   UNLOCK_AUTO_X: 8000002,
   UNLOCK_GREY_HINTS: 8000003,
   UNLOCK_DRAG_PAINT: 8000004,
@@ -63,9 +63,9 @@ export interface ItemDefinition {
 
 export const ITEM_REGISTRY: ItemDefinition[] = [
   {
-    id: AP_ITEMS.UNLOCK_SHOW_MISTAKES,
-    name: 'Show Mistakes',
-    description: 'Unlock the ability to see mistakes in real-time',
+    id: AP_ITEMS.UNLOCK_PLACE_X,
+    name: 'Place X',
+    description: 'Unlock the ability to mark cells with X',
     category: 'settings',
   },
   {
@@ -120,7 +120,7 @@ export function useArchipelagoItems() {
   // In "locked" mode (Archipelago run), these start as false
   // In "free play" mode, these are all true
   const unlocks = reactive({
-    showMistakes: false,
+    placeX: false,
     autoX: false,
     greyHints: false,
     dragPaint: false,
@@ -168,8 +168,8 @@ export function useArchipelagoItems() {
 
     // Apply the unlock
     switch (itemId) {
-      case AP_ITEMS.UNLOCK_SHOW_MISTAKES:
-        unlocks.showMistakes = true;
+      case AP_ITEMS.UNLOCK_PLACE_X:
+        unlocks.placeX = true;
         break;
       case AP_ITEMS.UNLOCK_AUTO_X:
         unlocks.autoX = true;
@@ -204,7 +204,7 @@ export function useArchipelagoItems() {
   // Enable Archipelago mode (lock everything)
   function enableArchipelagoMode() {
     archipelagoMode.value = true;
-    unlocks.showMistakes = false;
+    unlocks.placeX = false;
     unlocks.autoX = false;
     unlocks.greyHints = false;
     unlocks.dragPaint = false;
@@ -219,7 +219,7 @@ export function useArchipelagoItems() {
   // Disable Archipelago mode (unlock everything for free play)
   function disableArchipelagoMode() {
     archipelagoMode.value = false;
-    unlocks.showMistakes = true;
+    unlocks.placeX = true;
     unlocks.autoX = true;
     unlocks.greyHints = true;
     unlocks.dragPaint = true;

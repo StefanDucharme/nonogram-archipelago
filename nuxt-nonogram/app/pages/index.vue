@@ -24,6 +24,16 @@
   const { host, port, slot, password, status, lastMessage, messageLog, connect, disconnect, checkPuzzleSolved, debugReceiveItem, items } =
     useArchipelago();
 
+  // Loading state
+  const isLoading = ref(true);
+
+  onMounted(() => {
+    // Small delay to ensure everything is rendered
+    nextTick(() => {
+      isLoading.value = false;
+    });
+  });
+
   // User preference settings (these are what the user WANTS, actual behavior depends on unlocks)
   const showMistakes = ref(true);
   const checkPulse = ref(false);
@@ -34,11 +44,13 @@
   const coinsPerLine = ref(1); // Coins earned per completed row/column
 
   // Computed values that combine user preferences with unlock state
-  const effectiveShowMistakes = computed(() => showMistakes.value && items.unlocks.showMistakes);
+  const effectiveShowMistakes = computed(() => showMistakes.value); // Always available, just a preference
+  const canPlaceX = computed(() => items.unlocks.placeX); // X placement requires unlock
   const effectiveAutoX = computed(() => autoX.value && items.unlocks.autoX);
   const effectiveGreyHints = computed(() => greyCompletedHints.value && items.unlocks.greyHints);
   const effectiveDragPainting = computed(() => dragPainting.value && items.unlocks.dragPaint);
   const hintsHidden = computed(() => !items.unlocks.hints);
+  const gameOver = computed(() => items.archipelagoMode.value && items.currentLives.value <= 0);
 
   // Track completed rows/columns to award coins only once
   const completedRows = ref<Set<number>>(new Set());
@@ -91,6 +103,11 @@
 
   // Handle cell changes - check for mistakes
   function handleCellChange(r: number, c: number, mode: 'fill' | 'x' | 'erase') {
+    // Block X placement if not unlocked
+    if (mode === 'x' && !canPlaceX.value) {
+      return; // Silently ignore X placement attempts
+    }
+
     // First apply the change
     cycleCell(r, c, mode);
 
@@ -169,9 +186,33 @@
     completedRows.value = new Set();
     completedCols.value = new Set();
   }
+
+  // When Archipelago mode is enabled, generate a new puzzle so user doesn't see the hints
+  watch(
+    () => items.archipelagoMode.value,
+    (isArchipelagoMode) => {
+      if (isArchipelagoMode) {
+        randomize();
+      }
+    },
+  );
 </script>
 
 <template>
+  <!-- Loading Screen -->
+  <div v-if="isLoading" class="fixed inset-0 z-50 bg-neutral-950 flex flex-col items-center justify-center">
+    <div class="text-center space-y-6">
+      <div class="relative">
+        <!-- Spinning loader -->
+        <div class="w-16 h-16 border-4 border-neutral-700 border-t-accent-400 rounded-full animate-spin"></div>
+      </div>
+      <div class="space-y-2">
+        <h1 class="text-2xl font-bold text-neutral-100">Archipelago Nonogram</h1>
+        <p class="text-sm text-neutral-400">Loading puzzle...</p>
+      </div>
+    </div>
+  </div>
+
   <div class="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
     <div class="flex flex-1">
       <!-- Main content area -->
@@ -185,7 +226,7 @@
 
         <!-- LEFT: board -->
         <div class="glass-card p-6 animate-fade-in">
-          <!-- Status bar: Lives, Coins, Check Mistakes -->
+          <!-- Status bar: Lives, Coins-->
           <div class="flex items-center justify-between mb-4 pb-4 border-b border-neutral-700/50">
             <div class="flex items-center gap-6">
               <!-- Lives Display -->
@@ -210,17 +251,6 @@
                 <span v-if="!items.archipelagoMode.value" class="text-xs text-neutral-500">(∞)</span>
               </div>
             </div>
-            <!-- Check Mistakes Button -->
-            <button
-              type="button"
-              class="btn-secondary text-sm relative"
-              :class="{ 'opacity-50 cursor-not-allowed': !items.unlocks.checkMistakes }"
-              :disabled="!items.unlocks.checkMistakes"
-              @click="checkAll()"
-            >
-              <span v-if="!items.unlocks.checkMistakes" class="mr-1">🔒</span>
-              Check Mistakes
-            </button>
           </div>
 
           <div
@@ -239,23 +269,75 @@
             </div>
           </div>
 
-          <NonogramBoard
-            :rows="rows"
-            :cols="cols"
-            :row-clues="rowClueNumbers"
-            :col-clues="colClueNumbers"
-            :player="player"
-            :solution="solution"
-            :show-mistakes="effectiveShowMistakes || checkPulse"
-            :auto-x="effectiveAutoX"
-            :grey-completed-hints="effectiveGreyHints"
-            :is-row-clue-complete="isRowClueComplete"
-            :is-col-clue-complete="isColClueComplete"
-            :show-debug-grid="showDebugGrid"
-            :drag-painting="effectiveDragPainting"
-            :hide-hints="hintsHidden"
-            @cell="handleCellChange"
-          />
+          <!-- Game Over Message -->
+          <div v-if="gameOver && !solved" class="mb-6 p-4 rounded-sm border border-red-500/40 bg-red-500/10 text-red-200 animate-slide-up">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="text-2xl">💔</span>
+                <div>
+                  <div class="font-semibold">Game Over!</div>
+                  <div class="text-sm text-red-300/80">You ran out of lives. Try again?</div>
+                </div>
+              </div>
+              <button type="button" class="btn-primary" @click="randomize()">New Puzzle</button>
+            </div>
+          </div>
+
+          <div class="flex gap-6">
+            <!-- Grid -->
+            <div class="flex-shrink-0">
+              <NonogramBoard
+                :rows="rows"
+                :cols="cols"
+                :row-clues="rowClueNumbers"
+                :col-clues="colClueNumbers"
+                :player="player"
+                :solution="solution"
+                :show-mistakes="effectiveShowMistakes || checkPulse"
+                :auto-x="effectiveAutoX"
+                :grey-completed-hints="effectiveGreyHints"
+                :is-row-clue-complete="isRowClueComplete"
+                :is-col-clue-complete="isColClueComplete"
+                :show-debug-grid="showDebugGrid"
+                :drag-painting="effectiveDragPainting"
+                :hide-hints="hintsHidden"
+                @cell="handleCellChange"
+              />
+            </div>
+
+            <!-- Active Abilities Panel -->
+            <div class="flex-shrink-0 w-48">
+              <div class="bg-neutral-800/40 rounded-sm p-4 border border-neutral-700/50">
+                <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">Active Abilities</h3>
+                <div class="space-y-2">
+                  <!-- Place X Markers -->
+                  <div class="flex items-center gap-2 text-sm" :class="items.unlocks.placeX ? 'text-lime-400' : 'text-neutral-500'">
+                    <span>{{ items.unlocks.placeX ? '✓' : '🔒' }}</span>
+                    <span>Place X Markers</span>
+                  </div>
+                  <!-- Auto X -->
+                  <div class="flex items-center gap-2 text-sm" :class="effectiveAutoX ? 'text-lime-400' : 'text-neutral-500'">
+                    <span>{{ items.unlocks.autoX ? (autoX ? '✓' : '○') : '🔒' }}</span>
+                    <span>Auto-X Lines</span>
+                  </div>
+                  <!-- Grey Hints -->
+                  <div class="flex items-center gap-2 text-sm" :class="effectiveGreyHints ? 'text-lime-400' : 'text-neutral-500'">
+                    <span>{{ items.unlocks.greyHints ? (greyCompletedHints ? '✓' : '○') : '🔒' }}</span>
+                    <span>Grey Hints</span>
+                  </div>
+                  <!-- Drag Paint -->
+                  <div class="flex items-center gap-2 text-sm" :class="effectiveDragPainting ? 'text-lime-400' : 'text-neutral-500'">
+                    <span>{{ items.unlocks.dragPaint ? (dragPainting ? '✓' : '○') : '🔒' }}</span>
+                    <span>Drag Paint</span>
+                  </div>
+                </div>
+                <div class="mt-3 pt-3 border-t border-neutral-700/50 text-xs text-neutral-500">
+                  <span v-if="items.archipelagoMode.value">Unlock abilities via Archipelago</span>
+                  <span v-else>Free Play - All unlocked</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -287,7 +369,28 @@
             <div v-if="items.archipelagoMode.value" class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-sm">
               <div class="flex items-center gap-2 text-amber-300 text-sm">
                 <span>🔒</span>
-                <span>Archipelago Mode - Some features are locked until unlocked</span>
+                <span>Archipelago Mode - Some features are locked until rewarded</span>
+              </div>
+            </div>
+
+            <!-- Mode Toggle -->
+            <div class="bg-neutral-800/30 rounded-sm p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-sm font-medium text-neutral-200">Archipelago Mode</div>
+                  <div class="text-xs text-neutral-400">Lock features until received from AP</div>
+                </div>
+                <button
+                  class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                  :class="
+                    items.archipelagoMode.value
+                      ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                      : 'bg-neutral-600/30 text-neutral-300 hover:bg-neutral-600/50'
+                  "
+                  @click="items.archipelagoMode.value ? items.disableArchipelagoMode() : items.enableArchipelagoMode()"
+                >
+                  {{ items.archipelagoMode.value ? 'Disable' : 'Enable' }}
+                </button>
               </div>
             </div>
 
@@ -328,9 +431,7 @@
                     v-model.number="coinsPerLine"
                   />
                 </div>
-                <div v-if="items.extraLives.value > 0" class="text-xs text-lime-400">
-                  +{{ items.extraLives.value }} extra lives from Archipelago
-                </div>
+                <div v-if="items.extraLives.value > 0" class="text-xs text-lime-400">+{{ items.extraLives.value }} extra lives from Archipelago</div>
               </div>
             </section>
 
@@ -349,15 +450,9 @@
               <section class="space-y-4">
                 <h3 class="section-heading">Behaviour</h3>
                 <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
-                  <label
-                    class="flex items-center gap-3 group"
-                    :class="items.unlocks.showMistakes ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
-                  >
-                    <input type="checkbox" v-model="showMistakes" class="checkbox-field" :disabled="!items.unlocks.showMistakes" />
-                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
-                      <span v-if="!items.unlocks.showMistakes">🔒</span>
-                      Show mistakes in real-time
-                    </span>
+                  <label class="flex items-center gap-3 cursor-pointer group">
+                    <input type="checkbox" v-model="showMistakes" class="checkbox-field" />
+                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors"> Show mistakes in real-time </span>
                   </label>
 
                   <label class="flex items-center gap-3 group" :class="items.unlocks.autoX ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'">
@@ -545,27 +640,6 @@
               <div>
                 <h2 class="font-semibold text-neutral-100">Items & Unlocks</h2>
                 <p class="text-xs text-neutral-400">Archipelago items and unlock status</p>
-              </div>
-            </div>
-
-            <!-- Mode Toggle -->
-            <div class="bg-neutral-800/30 rounded-sm p-4">
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-sm font-medium text-neutral-200">Archipelago Mode</div>
-                  <div class="text-xs text-neutral-400">Lock features until received from AP</div>
-                </div>
-                <button
-                  class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
-                  :class="
-                    items.archipelagoMode.value
-                      ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-                      : 'bg-neutral-600/30 text-neutral-300 hover:bg-neutral-600/50'
-                  "
-                  @click="items.archipelagoMode.value ? items.disableArchipelagoMode() : items.enableArchipelagoMode()"
-                >
-                  {{ items.archipelagoMode.value ? 'Enabled (Locked)' : 'Disabled (Free Play)' }}
-                </button>
               </div>
             </div>
 
