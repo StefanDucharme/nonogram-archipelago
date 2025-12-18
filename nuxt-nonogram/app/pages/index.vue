@@ -1019,10 +1019,10 @@
                       @click="debugReceiveItem(item.id)"
                     >
                       {{ item.name }}
-                      <span v-if="item.id === items.AP_ITEMS.EXTRA_LIFE" class="text-lime-400">(+{{ items.extraLives.value }})</span>
-                      <span v-if="item.id === items.AP_ITEMS.COINS_BUNDLE" class="text-amber-400">({{ items.coins.value }})</span>
-                      <span v-if="item.id === items.AP_ITEMS.UNLOCK_HINTS" class="text-purple-400">({{ items.hintReveals.value }})</span>
-                      <span v-if="item.id === items.AP_ITEMS.SOLVE_RANDOM_CELL" class="text-cyan-400">({{ items.randomCellSolves.value }})</span>
+                      <span v-if="item.id === items.AP_ITEMS.EXTRA_LIFE" class="text-lime-400"></span>
+                      <span v-if="item.id === items.AP_ITEMS.COINS_BUNDLE" class="text-amber-400"></span>
+                      <span v-if="item.id === items.AP_ITEMS.UNLOCK_HINTS" class="text-purple-400"></span>
+                      <span v-if="item.id === items.AP_ITEMS.SOLVE_RANDOM_CELL" class="text-cyan-400"></span>
                     </button>
                   </div>
                 </div>

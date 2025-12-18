@@ -138,6 +138,8 @@ export function useArchipelagoItems() {
   const revealedRows = ref<Set<number>>(new Set()); // Which row hints are revealed for current puzzle
   const revealedCols = ref<Set<number>>(new Set()); // Which col hints are revealed for current puzzle
   const allHintsRevealed = computed(() => !archipelagoMode.value); // In free play, all hints shown
+  const currentPuzzleRows = ref(0); // Track current puzzle dimensions for re-selecting hints
+  const currentPuzzleCols = ref(0);
 
   // Lives system
   const baseLives = ref(3); // Default starting lives per puzzle (configurable)
@@ -199,6 +201,7 @@ export function useArchipelagoItems() {
         break;
       case AP_ITEMS.UNLOCK_HINTS:
         hintReveals.value += 1;
+        addRandomHintReveal(); // Immediately reveal a new hint on current puzzle
         break;
       case AP_ITEMS.EXTRA_LIFE:
         extraLives.value += 1;
@@ -288,6 +291,10 @@ export function useArchipelagoItems() {
 
   // Select which hints to reveal for a new puzzle
   function selectRevealedHints(totalRows: number, totalCols: number) {
+    // Store dimensions for re-selection when receiving new hints
+    currentPuzzleRows.value = totalRows;
+    currentPuzzleCols.value = totalCols;
+
     revealedRows.value = new Set();
     revealedCols.value = new Set();
 
@@ -321,6 +328,41 @@ export function useArchipelagoItems() {
         } else {
           revealedCols.value.add(hint.index);
         }
+      }
+    }
+  }
+
+  // Add a single new random hint reveal (called when receiving hint item mid-puzzle)
+  function addRandomHintReveal() {
+    if (!archipelagoMode.value) return; // Free play shows all anyway
+
+    const totalRows = currentPuzzleRows.value;
+    const totalCols = currentPuzzleCols.value;
+    if (totalRows === 0 || totalCols === 0) return; // No puzzle loaded yet
+
+    // Find all unrevealed hints
+    const unrevealedHints: Array<{ type: 'row' | 'col'; index: number }> = [];
+    for (let i = 0; i < totalRows; i++) {
+      if (!revealedRows.value.has(i)) {
+        unrevealedHints.push({ type: 'row', index: i });
+      }
+    }
+    for (let i = 0; i < totalCols; i++) {
+      if (!revealedCols.value.has(i)) {
+        unrevealedHints.push({ type: 'col', index: i });
+      }
+    }
+
+    if (unrevealedHints.length === 0) return; // All hints already revealed
+
+    // Pick a random unrevealed hint
+    const randomIndex = Math.floor(Math.random() * unrevealedHints.length);
+    const hint = unrevealedHints[randomIndex];
+    if (hint) {
+      if (hint.type === 'row') {
+        revealedRows.value.add(hint.index);
+      } else {
+        revealedCols.value.add(hint.index);
       }
     }
   }
