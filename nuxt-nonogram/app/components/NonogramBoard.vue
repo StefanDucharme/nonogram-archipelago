@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed, onMounted, onUnmounted } from 'vue';
+  import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
   import type { Cell, Mark } from '~/utils/nonogram';
 
   const props = defineProps<{
@@ -12,6 +12,8 @@
     showMistakes?: boolean;
     autoX?: boolean;
     greyCompletedHints?: boolean;
+    isRowClueComplete?: (rowIndex: number, clueIndex: number) => boolean;
+    isColClueComplete?: (colIndex: number, clueIndex: number) => boolean;
     showDebugGrid?: boolean;
     dragPainting?: boolean;
   }>();
@@ -47,6 +49,16 @@
 
   const colDepth = computed(() => Math.max(1, ...props.colClues.map((c) => c.length)));
   const rowDepth = computed(() => Math.max(1, ...props.rowClues.map((r) => r.length)));
+
+  // Debug: Log what hints are being used
+  watch(
+    () => props.rowClues,
+    (newClues) => {
+      console.log('NonogramBoard received rowClues:', JSON.stringify(newClues));
+      console.log('Row 1 clues:', newClues[0]);
+    },
+    { immediate: true, deep: true },
+  );
 
   const MAX_BOARD_PX = 520;
 
@@ -84,6 +96,42 @@
       console.log(`Col ${i + 1}:`, clues);
     });
     console.log('==================');
+  }
+
+  function copyDebugInfo() {
+    if (!props.solution) {
+      console.log('No solution available');
+      return;
+    }
+
+    let output = '=== DEBUG INFO ===\n\n';
+    output += 'Solution rows (0=empty, 1=fill) → rowClues prop:\n';
+    props.solution.forEach((row, r) => {
+      output += `R${r + 1}: [${row.join(',')}] → [${props.rowClues[r]?.join(', ') || '?'}]\n`;
+    });
+
+    output += '\nColumn hints (colClues prop):\n';
+    props.colClues.forEach((clues, c) => {
+      output += `C${c + 1}: [${clues.join(', ')}]\n`;
+    });
+
+    console.log('Debug output:', output);
+
+    try {
+      navigator.clipboard
+        .writeText(output)
+        .then(() => {
+          console.log('Copied to clipboard!');
+          alert('Debug info copied to clipboard!');
+        })
+        .catch((err) => {
+          console.error('Clipboard write failed:', err);
+          alert('Failed to copy. Check console for debug info.');
+        });
+    } catch (err) {
+      console.error('Clipboard error:', err);
+      alert('Failed to copy. Check console for debug info.');
+    }
   }
 
   function onPointerDown(e: PointerEvent, r: number, c: number) {
@@ -273,12 +321,27 @@
           }"
         >
           <template v-for="i in colDepth" :key="`row-${i}`">
-            <div v-for="c in cols" :key="`col-${c}-r-${i}`" class="flex items-end justify-center text-[11px] leading-none text-neutral-300">
+            <div
+              v-for="c in cols"
+              :key="`col-${c}-r-${i}`"
+              class="flex items-end justify-center text-[11px] leading-none"
+              :class="
+                (() => {
+                  const clueArray = colClues[c - 1];
+                  const clueIndex = i - 1 - (colDepth - clueArray.length);
+                  if (clueIndex >= 0 && clueIndex < clueArray.length) {
+                    const isComplete = props.greyCompletedHints && props.isColClueComplete?.(c - 1, clueIndex);
+                    return isComplete ? 'text-neutral-600' : 'text-neutral-300';
+                  }
+                  return 'text-neutral-300';
+                })()
+              "
+            >
               <!-- show from bottom -->
               {{
                 (() => {
                   const clueArray = colClues[c - 1];
-                  const clueIndex = i - (colDepth - clueArray.length);
+                  const clueIndex = i - 1 - (colDepth - clueArray.length);
                   if (clueIndex >= 0 && clueIndex < clueArray.length) {
                     return clueArray[clueIndex];
                   }
@@ -300,12 +363,27 @@
           }"
         >
           <template v-for="r in rows" :key="`row-${r}`">
-            <div v-for="i in rowDepth" :key="`row-${r}-c-${i}`" class="flex items-center justify-end pr-1 text-[11px] leading-none text-neutral-300">
+            <div
+              v-for="i in rowDepth"
+              :key="`row-${r}-c-${i}`"
+              class="flex items-center justify-end pr-1 text-[11px] leading-none"
+              :class="
+                (() => {
+                  const clueArray = rowClues[r - 1];
+                  const clueIndex = i - 1 - (rowDepth - clueArray.length);
+                  if (clueIndex >= 0 && clueIndex < clueArray.length) {
+                    const isComplete = props.greyCompletedHints && props.isRowClueComplete?.(r - 1, clueIndex);
+                    return isComplete ? 'text-neutral-600' : 'text-neutral-300';
+                  }
+                  return 'text-neutral-300';
+                })()
+              "
+            >
               <!-- show from right -->
               {{
                 (() => {
                   const clueArray = rowClues[r - 1];
-                  const clueIndex = i - (rowDepth - clueArray.length);
+                  const clueIndex = i - 1 - (rowDepth - clueArray.length);
                   if (clueIndex >= 0 && clueIndex < clueArray.length) {
                     return clueArray[clueIndex];
                   }
@@ -427,29 +505,64 @@
     <div class="mt-3 text-xs text-neutral-400">Left click: fill • Right click: X • Shift+click: erase</div>
 
     <!-- Debug Solution Grid -->
-    <div v-if="props.showDebugGrid && props.solution" class="mt-6 p-4 bg-neutral-800/20 rounded border border-neutral-700">
+    <div v-if="props.showDebugGrid && props.solution" class="mt-6 p-4 bg-neutral-800/20 rounded border border-neutral-700 select-text">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-semibold text-neutral-300">Solution (Debug)</h3>
-        <button @click="debugHints" class="px-2 py-1 text-xs bg-neutral-700 hover:bg-neutral-600 text-neutral-200 rounded">Log Hints</button>
+        <div class="flex gap-2">
+          <button @click="copyDebugInfo" class="px-2 py-1 text-xs bg-neutral-700 hover:bg-neutral-600 text-neutral-200 rounded">Copy Debug</button>
+          <button @click="debugHints" class="px-2 py-1 text-xs bg-neutral-700 hover:bg-neutral-600 text-neutral-200 rounded">Log Hints</button>
+        </div>
       </div>
-      <div
-        class="grid gap-0 border border-neutral-600"
-        :style="{
-          gridTemplateColumns: `repeat(${cols}, 12px)`,
-          gridTemplateRows: `repeat(${rows}, 12px)`,
-        }"
-      >
-        <div v-for="(row, r) in solution" :key="`debug-row-${r}`" class="contents">
+
+      <!-- Visual grid -->
+      <div class="flex mb-4">
+        <!-- Row numbers -->
+        <div class="flex flex-col mr-1">
+          <!-- Spacer for column header row -->
+          <div class="h-[12px] mb-1"></div>
+          <div v-for="r in rows" :key="`row-num-${r}`" class="h-[12px] text-[8px] text-neutral-500 flex items-center justify-end pr-1">
+            {{ r }}
+          </div>
+        </div>
+        <!-- Grid -->
+        <div>
+          <!-- Column numbers -->
+          <div class="flex mb-1">
+            <div v-for="c in cols" :key="`col-num-${c}`" class="w-[12px] text-[8px] text-neutral-500 text-center">
+              {{ c }}
+            </div>
+          </div>
           <div
-            v-for="(cell, c) in row"
-            :key="`debug-${r}-${c}`"
-            class="border-r border-b border-neutral-700"
-            :class="cell === 1 ? 'bg-neutral-400' : 'bg-transparent'"
+            class="grid gap-0 border border-neutral-600"
             :style="{
-              borderRightWidth: c === cols - 1 ? '0' : '1px',
-              borderBottomWidth: r === rows - 1 ? '0' : '1px',
+              gridTemplateColumns: `repeat(${cols}, 12px)`,
+              gridTemplateRows: `repeat(${rows}, 12px)`,
             }"
-          ></div>
+          >
+            <div v-for="(row, r) in solution" :key="`debug-row-${r}`" class="contents">
+              <div
+                v-for="(cell, c) in row"
+                :key="`debug-${r}-${c}`"
+                class="border-r border-b border-neutral-700"
+                :class="cell === 1 ? 'bg-neutral-400' : 'bg-transparent'"
+                :style="{
+                  borderRightWidth: c === cols - 1 ? '0' : '1px',
+                  borderBottomWidth: r === rows - 1 ? '0' : '1px',
+                }"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Show each row's raw solution data + computed hints side by side -->
+      <div class="text-[10px] text-neutral-400 font-mono space-y-1">
+        <div class="text-neutral-500 mb-2">Row data: [solution cells] → [computed hints] | displayed hints: [from rowClues prop]</div>
+        <div v-for="(row, r) in solution" :key="`debug-row-data-${r}`" class="flex items-center gap-2">
+          <span class="text-neutral-500 w-8">R{{ r + 1 }}:</span>
+          <span class="text-neutral-300">[{{ row.join(',') }}]</span>
+          <span class="text-neutral-500">→</span>
+          <span class="text-amber-400">[{{ rowClues[r]?.join(', ') || '?' }}]</span>
         </div>
       </div>
     </div>

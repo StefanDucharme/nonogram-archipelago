@@ -3,7 +3,7 @@
   import { useNonogram } from '~/composables/useNonogram';
   import { useArchipelago } from '~/composables/useArchipelago';
 
-  const { rows, cols, fillRate, solution, player, rowClues, colClues, solved, newRandom, clearPlayer, cycleCell } = useNonogram();
+  const { rows, cols, fillRate, solution, player, rowClueNumbers, colClueNumbers, solved, isRowClueComplete, isColClueComplete, newRandom, clearPlayer, cycleCell } = useNonogram();
 
   const { host, port, slot, password, status, lastMessage, connect, disconnect, checkPuzzleSolved } = useArchipelago();
 
@@ -87,13 +87,15 @@
           <NonogramBoard
             :rows="rows"
             :cols="cols"
-            :row-clues="rowClues"
-            :col-clues="colClues"
+            :row-clues="rowClueNumbers"
+            :col-clues="colClueNumbers"
             :player="player"
             :solution="solution"
             :show-mistakes="showMistakes || checkPulse"
             :auto-x="autoX"
             :grey-completed-hints="greyCompletedHints"
+            :is-row-clue-complete="isRowClueComplete"
+            :is-col-clue-complete="isColClueComplete"
             :show-debug-grid="showDebugGrid"
             :drag-painting="dragPainting"
             @cell="cycleCell"
