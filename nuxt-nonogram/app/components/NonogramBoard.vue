@@ -247,66 +247,78 @@
     if (!props.solution) return false;
 
     const playerRow = props.player[r];
-    const solutionRow = props.solution[r];
     const clues = props.rowClues[r];
 
-    // If no clues or clue is [0], consider it determined if all cells are empty/X
+    // If no clues or clue is [0], consider it determined if no fills are present
     if (clues.length === 1 && clues[0] === 0) {
-      return playerRow.every((cell) => cell !== 'fill');
+      const result = playerRow.every((cell) => cell !== 'fill');
+      console.log(`Row ${r + 1}: empty clue [0], all non-fill: ${result}`);
+      return result;
     }
 
-    // Check if all required cells are filled
-    let allRequiredFilled = true;
+    // Calculate the current pattern from filled cells
+    const filledSegments: number[] = [];
+    let currentSegment = 0;
+
     for (let c = 0; c < props.cols; c++) {
-      if (solutionRow[c] === 1 && playerRow[c] !== 'fill') {
-        allRequiredFilled = false;
-        break;
+      if (playerRow[c] === 'fill') {
+        currentSegment++;
+      } else {
+        if (currentSegment > 0) {
+          filledSegments.push(currentSegment);
+          currentSegment = 0;
+        }
       }
     }
-
-    if (!allRequiredFilled) return false;
-
-    // Check if there are no wrong fills
-    for (let c = 0; c < props.cols; c++) {
-      if (solutionRow[c] === 0 && playerRow[c] === 'fill') {
-        return false;
-      }
+    if (currentSegment > 0) {
+      filledSegments.push(currentSegment);
     }
 
-    return true;
+    // Check if current pattern matches the clues exactly
+    const matches = filledSegments.length === clues.length && filledSegments.every((seg, i) => seg === clues[i]);
+
+    console.log(`Row ${r + 1}: clues=${JSON.stringify(clues)}, filled=${JSON.stringify(filledSegments)}, matches=${matches}`);
+
+    return matches;
   }
 
   function isColPatternUniquelyDetermined(c: number): boolean {
     if (!props.solution) return false;
 
     const playerCol = props.player.map((row) => row[c]);
-    const solutionCol = props.solution.map((row) => row[c]);
     const clues = props.colClues[c];
 
-    // If no clues or clue is [0], consider it determined if all cells are empty/X
+    // If no clues or clue is [0], consider it determined if no fills are present
     if (clues.length === 1 && clues[0] === 0) {
-      return playerCol.every((cell) => cell !== 'fill');
+      const result = playerCol.every((cell) => cell !== 'fill');
+      console.log(`Col ${c + 1}: empty clue [0], all non-fill: ${result}`);
+      return result;
     }
 
-    // Check if all required cells are filled
-    let allRequiredFilled = true;
+    // Calculate the current pattern from filled cells
+    const filledSegments: number[] = [];
+    let currentSegment = 0;
+
     for (let r = 0; r < props.rows; r++) {
-      if (solutionCol[r] === 1 && playerCol[r] !== 'fill') {
-        allRequiredFilled = false;
-        break;
+      if (playerCol[r] === 'fill') {
+        currentSegment++;
+      } else {
+        if (currentSegment > 0) {
+          filledSegments.push(currentSegment);
+          currentSegment = 0;
+        }
       }
     }
-
-    if (!allRequiredFilled) return false;
-
-    // Check if there are no wrong fills
-    for (let r = 0; r < props.rows; r++) {
-      if (solutionCol[r] === 0 && playerCol[r] === 'fill') {
-        return false;
-      }
+    if (currentSegment > 0) {
+      filledSegments.push(currentSegment);
     }
 
-    return true;
+    // Check if current pattern matches the clues exactly
+    const matches = filledSegments.length === clues.length && filledSegments.every((seg, i) => seg === clues[i]);
+
+    console.log(`Col ${c + 1}: clues=${JSON.stringify(clues)}, filled=${JSON.stringify(filledSegments)}, matches=${matches}`);
+
+    return matches;
   }
 </script>
 
@@ -343,7 +355,7 @@
               v-for="c in cols"
               :key="`col-${c}-r-${i}`"
               class="flex items-end justify-center text-[11px] leading-none"
-              :class="props.greyCompletedHints && isColPatternUniquelyDetermined(c - 1) ? 'text-neutral-500' : 'text-neutral-300'"
+              :class="props.greyCompletedHints && isColPatternUniquelyDetermined(c - 1) ? 'text-neutral-600' : 'text-neutral-300'"
             >
               <!-- show from bottom -->
               {{
@@ -375,7 +387,7 @@
               v-for="i in rowDepth"
               :key="`row-${r}-c-${i}`"
               class="flex items-center justify-end pr-1 text-[11px] leading-none"
-              :class="props.greyCompletedHints && isRowPatternUniquelyDetermined(r - 1) ? 'text-neutral-500' : 'text-neutral-300'"
+              :class="props.greyCompletedHints && isRowPatternUniquelyDetermined(r - 1) ? 'text-neutral-600' : 'text-neutral-300'"
             >
               <!-- show from right -->
               {{
