@@ -151,22 +151,20 @@
 
   function isWrongX(r: number, c: number) {
     if (!props.showMistakes || !props.solution) return false;
-    return props.player[r][c] === 'x' && props.solution[r][c] === 1;
-  }
 
-  function isRowComplete(r: number): boolean {
-    if (!props.solution) return false;
+    const isWrong = props.player[r][c] === 'x' && props.solution[r][c] === 1;
 
-    // Check if all cells in the row match the solution
-    for (let c = 0; c < props.cols; c++) {
-      const shouldBeFilled = props.solution[r][c] === 1;
-      const playerFilled = props.player[r][c] === 'fill';
-
-      if (shouldBeFilled && !playerFilled) return false; // Missing required fill
-      if (!shouldBeFilled && playerFilled) return false; // Wrong fill
+    // Debug any X cell that should be wrong
+    if (props.player[r][c] === 'x') {
+      console.log(`Cell [${r},${c}] (row ${r + 1}, col ${c + 1}):`, {
+        playerState: props.player[r][c],
+        solutionState: props.solution[r][c],
+        showMistakes: props.showMistakes,
+        isWrong,
+      });
     }
 
-    return true;
+    return isWrong;
   }
 
   function isColComplete(c: number): boolean {
@@ -194,6 +192,21 @@
 
     // Auto-X if either the row or column is complete
     return isRowComplete(r) || isColComplete(c);
+  }
+
+  function isRowComplete(r: number): boolean {
+    if (!props.solution) return false;
+
+    // Check if all cells in the row match the solution
+    for (let c = 0; c < props.cols; c++) {
+      const shouldBeFilled = props.solution[r][c] === 1;
+      const playerFilled = props.player[r][c] === 'fill';
+
+      if (shouldBeFilled && !playerFilled) return false; // Missing required fill
+      if (!shouldBeFilled && playerFilled) return false; // Wrong fill
+    }
+
+    return true;
   }
 
   function isRowPatternComplete(r: number): boolean {
@@ -453,14 +466,11 @@
                     // selection: cell itself turns blue (even if empty)
                     sel ? 'bg-neutral-600/30' : '',
 
-                    // mistakes (optional) - fill mistakes
-                    isWrongFill(r, c) ? 'bg-red-500/25' : '',
-
-                    // X mistakes get red background regardless of text color
-                    isWrongX(r, c) ? 'bg-red-500/25' : '',
-
-                    // auto-X styling
+                    // auto-X styling (before mistakes so mistakes can override)
                     shouldAutoX(r, c) ? 'bg-neutral-700/40' : '',
+
+                    // mistakes (optional) - fill mistakes
+                    isWrongFill(r, c) ? 'bg-red-500/50' : '',
                   ];
                 })()
               "
@@ -475,7 +485,8 @@
                   (() => {
                     const r = Math.floor((idx - 1) / cols);
                     const c = (idx - 1) % cols;
-                    // Don't change text color for wrong X - background already handles it
+                    // Make mistake X marks obvious with red text
+                    if (isWrongX(r, c)) return 'text-red-500';
                     if (shouldAutoX(r, c)) return 'text-neutral-500';
                     return 'text-neutral-400 opacity-70';
                   })()
