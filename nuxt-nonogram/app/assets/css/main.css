@@ -185,3 +185,26 @@ body {
   @apply focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 focus:ring-offset-neutral-900;
   transition: box-shadow 0.2s ease-in-out;
 }
+
+/* Message flash animation */
+@keyframes message-flash {
+  0% {
+    opacity: 0;
+    transform: translateX(10px);
+    color: #facc15;
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(0);
+    color: #facc15;
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+    color: inherit;
+  }
+}
+
+.animate-message-flash {
+  animation: message-flash 1s ease-out;
+}

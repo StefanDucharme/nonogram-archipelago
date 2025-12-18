@@ -51,6 +51,10 @@
   const effectiveDragPainting = computed(() => dragPainting.value && items.unlocks.dragPaint);
   const gameOver = computed(() => !items.unlimitedLives.value && items.currentLives.value <= 0);
 
+  // Filter out consumables from unlocked/locked items display
+  const unlockedNonConsumables = computed(() => items.unlockedItems.value.filter((item) => item.category !== 'consumable'));
+  const lockedNonConsumables = computed(() => items.lockedItems.value.filter((item) => item.category !== 'consumable'));
+
   // Track completed rows/columns to award coins only once
   const completedRows = ref<Set<number>>(new Set());
   const completedCols = ref<Set<number>>(new Set());
@@ -515,503 +519,515 @@
 
       <!-- RIGHT: sidebar attached to right side -->
       <div
-        class="w-96 shrink-0 bg-neutral-900/95 backdrop-blur-lg border-l border-neutral-700 flex flex-col h-full animate-fade-in"
+        class="w-1/3 shrink-0 bg-neutral-900/95 backdrop-blur-lg border-l border-neutral-700 flex h-full animate-fade-in"
         style="box-shadow: -8px 0 32px rgba(0, 0, 0, 0.3)"
       >
-        <!-- Active Abilities Panel - sticky at top -->
-        <div class="shrink-0 p-4 border-b border-neutral-700/50 bg-neutral-900/95">
-          <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">Active Abilities</h3>
+        <!-- Active Abilities Panel - left side of right panel -->
+        <div class="w-40 shrink-0 p-3 border-r border-neutral-700/50 bg-neutral-900/95 overflow-auto">
+          <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">Abilities</h3>
           <div class="space-y-2">
             <!-- Place X Markers -->
-            <div class="flex items-center gap-2 text-sm" :class="items.unlocks.placeX ? 'text-lime-400' : 'text-neutral-500'">
+            <div class="flex items-center gap-1.5 text-xs" :class="items.unlocks.placeX ? 'text-lime-400' : 'text-neutral-500'">
               <span>{{ items.unlocks.placeX ? '✓' : '🔒' }}</span>
-              <span>Place X Markers</span>
+              <span>Place X</span>
             </div>
             <!-- Auto X -->
-            <div class="flex items-center gap-2 text-sm" :class="effectiveAutoX ? 'text-lime-400' : 'text-neutral-500'">
+            <div class="flex items-center gap-1.5 text-xs" :class="effectiveAutoX ? 'text-lime-400' : 'text-neutral-500'">
               <span>{{ items.unlocks.autoX ? (autoX ? '✓' : '○') : '🔒' }}</span>
-              <span>Auto-X Lines</span>
+              <span>Auto-X</span>
             </div>
             <!-- Grey Hints -->
-            <div class="flex items-center gap-2 text-sm" :class="effectiveGreyHints ? 'text-lime-400' : 'text-neutral-500'">
+            <div class="flex items-center gap-1.5 text-xs" :class="effectiveGreyHints ? 'text-lime-400' : 'text-neutral-500'">
               <span>{{ items.unlocks.greyHints ? (greyCompletedHints ? '✓' : '○') : '🔒' }}</span>
               <span>Grey Hints</span>
             </div>
             <!-- Drag Paint -->
-            <div class="flex items-center gap-2 text-sm" :class="effectiveDragPainting ? 'text-lime-400' : 'text-neutral-500'">
+            <div class="flex items-center gap-1.5 text-xs" :class="effectiveDragPainting ? 'text-lime-400' : 'text-neutral-500'">
               <span>{{ items.unlocks.dragPaint ? (dragPainting ? '✓' : '○') : '🔒' }}</span>
               <span>Drag Paint</span>
             </div>
             <!-- Hint Reveals -->
             <div
-              class="flex items-center gap-2 text-sm"
+              class="flex items-center gap-1.5 text-xs"
               :class="items.hintReveals.value > 0 || !items.archipelagoMode.value ? 'text-lime-400' : 'text-neutral-500'"
             >
               <span>{{ items.archipelagoMode.value ? items.hintReveals.value : '∞' }}</span>
-              <span>Hints Revealed</span>
+              <span>Hints</span>
             </div>
           </div>
-          <div class="mt-3 pt-3 border-t border-neutral-700/50 text-xs text-neutral-500">
-            <span v-if="items.archipelagoMode.value">Unlock abilities via Archipelago</span>
-            <span v-else>Free Play - All unlocked</span>
+          <div class="mt-3 pt-3 border-t border-neutral-700/50 text-[10px] text-neutral-500 leading-tight">
+            <span v-if="items.archipelagoMode.value">Unlock via AP</span>
+            <span v-else>Free Play</span>
           </div>
         </div>
-        <!-- tab bar -->
-        <div class="flex border-b border-neutral-700/50">
-          <button class="tab-button" :class="{ active: activeTab === 'archipelago' }" @click="activeTab = 'archipelago'">Archipelago</button>
-          <button class="tab-button" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">Settings</button>
-          <button class="tab-button" :class="{ active: activeTab === 'chat' }" @click="activeTab = 'chat'">Chat</button>
-          <button class="tab-button" :class="{ active: activeTab === 'shop' }" @click="activeTab = 'shop'">Shop</button>
-        </div>
 
-        <!-- tab content -->
-        <div class="p-6 flex-1 overflow-auto">
-          <!-- SETTINGS -->
-          <div v-if="activeTab === 'settings'" class="space-y-6">
-            <div class="flex items-center gap-3 mb-6">
-              <div>
-                <h2 class="font-semibold text-neutral-100">Game Settings</h2>
-                <p class="text-xs text-neutral-400">Customize your puzzle experience</p>
-              </div>
-            </div>
+        <!-- Right side: tabs and content -->
+        <div class="flex-1 flex flex-col min-w-0">
+          <!-- tab bar -->
+          <div class="flex border-b border-neutral-700/50 shrink-0">
+            <button class="tab-button" :class="{ active: activeTab === 'archipelago' }" @click="activeTab = 'archipelago'">Archipelago</button>
+            <button class="tab-button" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">Settings</button>
+            <button class="tab-button" :class="{ active: activeTab === 'chat' }" @click="activeTab = 'chat'">Chat</button>
+            <button class="tab-button" :class="{ active: activeTab === 'shop' }" @click="activeTab = 'shop'">Shop</button>
+          </div>
 
-            <!-- Archipelago Mode Indicator -->
-            <div v-if="items.archipelagoMode.value" class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-sm">
-              <div class="flex items-center gap-2 text-amber-300 text-sm">
-                <span>🔒</span>
-                <span>Archipelago Mode - Some features are locked until rewarded</span>
-              </div>
-            </div>
-
-            <!-- Mode Toggle -->
-            <div class="bg-neutral-800/30 rounded-sm p-4">
-              <div class="flex items-center justify-between">
+          <!-- tab content -->
+          <div class="p-4 flex-1 overflow-auto">
+            <!-- SETTINGS -->
+            <div v-if="activeTab === 'settings'" class="space-y-6">
+              <div class="flex items-center gap-3 mb-6">
                 <div>
-                  <div class="text-sm font-medium text-neutral-200">Archipelago Mode</div>
-                  <div class="text-xs text-neutral-400">Lock features until received from AP</div>
+                  <h2 class="font-semibold text-neutral-100">Game Settings</h2>
+                  <p class="text-xs text-neutral-400">Customize your puzzle experience</p>
                 </div>
-                <button
-                  class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
-                  :class="
-                    items.archipelagoMode.value
-                      ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-                      : 'bg-neutral-600/30 text-neutral-300 hover:bg-neutral-600/50'
-                  "
-                  @click="items.archipelagoMode.value ? items.disableArchipelagoMode() : items.enableArchipelagoMode()"
-                >
-                  {{ items.archipelagoMode.value ? 'Disable' : 'Enable' }}
-                </button>
               </div>
-            </div>
 
-            <!-- Starting Resources -->
-            <section class="space-y-3">
-              <h3 class="section-heading">Resources</h3>
-              <div class="bg-neutral-800/30 rounded-sm p-4 space-y-4">
-                <!-- Unlimited toggles -->
-                <label class="flex items-center gap-3 cursor-pointer group">
-                  <input type="checkbox" v-model="items.unlimitedLives.value" class="checkbox-field" />
-                  <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Unlimited Lives</span>
-                </label>
-                <label class="flex items-center gap-3 cursor-pointer group">
-                  <input type="checkbox" v-model="items.unlimitedCoins.value" class="checkbox-field" />
-                  <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Unlimited Coins</span>
-                </label>
+              <!-- Archipelago Mode Indicator -->
+              <div v-if="items.archipelagoMode.value" class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-sm">
+                <div class="flex items-center gap-2 text-amber-300 text-sm">
+                  <span>🔒</span>
+                  <span>Archipelago Mode - Some features are locked until rewarded</span>
+                </div>
+              </div>
 
-                <div class="border-t border-neutral-700/50 pt-4">
+              <!-- Mode Toggle -->
+              <div class="bg-neutral-800/30 rounded-sm p-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-sm font-medium text-neutral-200">Archipelago Mode</div>
+                    <div class="text-xs text-neutral-400">Lock features until received from AP</div>
+                  </div>
+                  <button
+                    class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                    :class="
+                      items.archipelagoMode.value
+                        ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                        : 'bg-neutral-600/30 text-neutral-300 hover:bg-neutral-600/50'
+                    "
+                    @click="items.archipelagoMode.value ? items.disableArchipelagoMode() : items.enableArchipelagoMode()"
+                  >
+                    {{ items.archipelagoMode.value ? 'Disable' : 'Enable' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Starting Resources -->
+              <section class="space-y-3">
+                <h3 class="section-heading">Resources</h3>
+                <div class="bg-neutral-800/30 rounded-sm p-4 space-y-4">
+                  <!-- Unlimited toggles -->
+                  <label class="flex items-center gap-3 cursor-pointer group">
+                    <input type="checkbox" v-model="items.unlimitedLives.value" class="checkbox-field" />
+                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Unlimited Lives</span>
+                  </label>
+                  <label class="flex items-center gap-3 cursor-pointer group">
+                    <input type="checkbox" v-model="items.unlimitedCoins.value" class="checkbox-field" />
+                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Unlimited Coins</span>
+                  </label>
+
+                  <div class="border-t border-neutral-700/50 pt-4">
+                    <div class="flex items-center justify-between">
+                      <label for="starting-lives" class="text-sm text-neutral-300">Starting Lives</label>
+                      <input
+                        id="starting-lives"
+                        type="number"
+                        min="1"
+                        max="10"
+                        class="input-field w-20 text-center text-sm"
+                        v-model.number="items.baseLives.value"
+                      />
+                    </div>
+                  </div>
                   <div class="flex items-center justify-between">
-                    <label for="starting-lives" class="text-sm text-neutral-300">Starting Lives</label>
+                    <label for="starting-coins" class="text-sm text-neutral-300">Starting Coins</label>
                     <input
-                      id="starting-lives"
+                      id="starting-coins"
                       type="number"
-                      min="1"
-                      max="10"
+                      min="0"
+                      max="100"
                       class="input-field w-20 text-center text-sm"
-                      v-model.number="items.baseLives.value"
+                      v-model.number="items.startingCoins.value"
                     />
                   </div>
-                </div>
-                <div class="flex items-center justify-between">
-                  <label for="starting-coins" class="text-sm text-neutral-300">Starting Coins</label>
-                  <input
-                    id="starting-coins"
-                    type="number"
-                    min="0"
-                    max="100"
-                    class="input-field w-20 text-center text-sm"
-                    v-model.number="items.startingCoins.value"
-                  />
-                </div>
-                <div class="flex items-center justify-between">
-                  <label for="coins-per-line" class="text-sm text-neutral-300">Coins per Line</label>
-                  <input
-                    id="coins-per-line"
-                    type="number"
-                    min="0"
-                    max="10"
-                    class="input-field w-20 text-center text-sm"
-                    v-model.number="coinsPerLine"
-                  />
-                </div>
-                <div class="flex items-center justify-between">
-                  <label for="coins-per-bundle" class="text-sm text-neutral-300">Coins per Bundle</label>
-                  <input
-                    id="coins-per-bundle"
-                    type="number"
-                    min="1"
-                    max="50"
-                    class="input-field w-20 text-center text-sm"
-                    v-model.number="items.coinsPerBundle.value"
-                  />
-                </div>
-                <div v-if="items.extraLives.value > 0" class="text-xs text-lime-400">+{{ items.extraLives.value }} extra lives from Archipelago</div>
-              </div>
-            </section>
-
-            <div class="space-y-6">
-              <section class="space-y-4">
-                <h3 class="section-heading">Debug</h3>
-                <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
-                  <label class="flex items-center gap-3 cursor-pointer group">
-                    <input type="checkbox" v-model="showDebugGrid" class="checkbox-field" />
-                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Show solution grid (debug)</span>
-                  </label>
-                  <button type="button" class="btn-secondary w-full" @click="autoSolve()">Auto-Solve Puzzle</button>
-                </div>
-              </section>
-              <!-- Game Display -->
-              <section class="space-y-4">
-                <h3 class="section-heading">Behaviour</h3>
-                <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
-                  <label class="flex items-center gap-3 cursor-pointer group">
-                    <input type="checkbox" v-model="showMistakes" class="checkbox-field" />
-                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors"> Show mistakes in real-time </span>
-                  </label>
-
-                  <label class="flex items-center gap-3 group" :class="items.unlocks.autoX ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'">
-                    <input type="checkbox" v-model="autoX" class="checkbox-field" :disabled="!items.unlocks.autoX" />
-                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
-                      <span v-if="!items.unlocks.autoX">🔒</span>
-                      Auto-X completed rows/columns
-                    </span>
-                  </label>
-
-                  <label class="flex items-center gap-3 group" :class="items.unlocks.greyHints ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'">
-                    <input type="checkbox" v-model="greyCompletedHints" class="checkbox-field" :disabled="!items.unlocks.greyHints" />
-                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
-                      <span v-if="!items.unlocks.greyHints">🔒</span>
-                      Grey out completed hints
-                    </span>
-                  </label>
-
-                  <label class="flex items-center gap-3 group" :class="items.unlocks.dragPaint ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'">
-                    <input type="checkbox" v-model="dragPainting" class="checkbox-field" :disabled="!items.unlocks.dragPaint" />
-                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
-                      <span v-if="!items.unlocks.dragPaint">🔒</span>
-                      Click and drag to paint cells
-                    </span>
-                  </label>
-                </div>
-              </section>
-              <!-- Puzzle Dimensions -->
-              <section class="space-y-4">
-                <h3 class="section-heading">Puzzle Dimensions</h3>
-                <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
-                  <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-2">
-                      <label for="rows" class="block text-xs font-medium text-neutral-300">Rows</label>
-                      <input
-                        id="rows"
-                        type="number"
-                        min="5"
-                        max="50"
-                        class="input-field"
-                        :value="rows"
-                        @change="(e:any) => setRows(clampInt(e.target.value, 5, 50))"
-                      />
-                    </div>
-                    <div class="space-y-2">
-                      <label for="cols" class="block text-xs font-medium text-neutral-300">Columns</label>
-                      <input
-                        id="cols"
-                        type="number"
-                        min="5"
-                        max="50"
-                        class="input-field"
-                        :value="cols"
-                        :disabled="lockSize"
-                        @change="(e:any) => setCols(clampInt(e.target.value, 5, 50))"
-                      />
-                    </div>
+                  <div class="flex items-center justify-between">
+                    <label for="coins-per-line" class="text-sm text-neutral-300">Coins per Line</label>
+                    <input
+                      id="coins-per-line"
+                      type="number"
+                      min="0"
+                      max="10"
+                      class="input-field w-20 text-center text-sm"
+                      v-model.number="coinsPerLine"
+                    />
                   </div>
-
-                  <label class="flex items-center gap-3 cursor-pointer group">
-                    <input type="checkbox" v-model="lockSize" class="checkbox-field" />
-                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Lock aspect ratio (square puzzles) </span>
-                  </label>
+                  <div class="flex items-center justify-between">
+                    <label for="coins-per-bundle" class="text-sm text-neutral-300">Coins per Bundle</label>
+                    <input
+                      id="coins-per-bundle"
+                      type="number"
+                      min="1"
+                      max="50"
+                      class="input-field w-20 text-center text-sm"
+                      v-model.number="items.coinsPerBundle.value"
+                    />
+                  </div>
+                  <div v-if="items.extraLives.value > 0" class="text-xs text-lime-400">
+                    +{{ items.extraLives.value }} extra lives from Archipelago
+                  </div>
                 </div>
               </section>
-              <!-- Puzzle Generation -->
-              <section class="space-y-4">
-                <h3 class="section-heading">Puzzle Generation</h3>
-                <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
-                  <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                      <label for="fill-rate" class="text-xs font-medium text-neutral-300"> Fill Density </label>
-                      <div class="flex items-center gap-2">
-                        <span class="px-2 py-1 bg-neutral-600/30 text-neutral-300 rounded-md text-xs font-medium">
-                          {{ Math.round(fillRate * 100) }}%
-                        </span>
+
+              <div class="space-y-6">
+                <section class="space-y-4">
+                  <h3 class="section-heading">Debug</h3>
+                  <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" v-model="showDebugGrid" class="checkbox-field" />
+                      <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Show solution grid (debug)</span>
+                    </label>
+                    <button type="button" class="btn-secondary w-full" @click="autoSolve()">Auto-Solve Puzzle</button>
+                  </div>
+                </section>
+                <!-- Game Display -->
+                <section class="space-y-4">
+                  <h3 class="section-heading">Behaviour</h3>
+                  <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" v-model="showMistakes" class="checkbox-field" />
+                      <span class="text-sm text-neutral-200 group-hover:text-white transition-colors"> Show mistakes in real-time </span>
+                    </label>
+
+                    <label class="flex items-center gap-3 group" :class="items.unlocks.autoX ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'">
+                      <input type="checkbox" v-model="autoX" class="checkbox-field" :disabled="!items.unlocks.autoX" />
+                      <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
+                        <span v-if="!items.unlocks.autoX">🔒</span>
+                        Auto-X completed rows/columns
+                      </span>
+                    </label>
+
+                    <label
+                      class="flex items-center gap-3 group"
+                      :class="items.unlocks.greyHints ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
+                    >
+                      <input type="checkbox" v-model="greyCompletedHints" class="checkbox-field" :disabled="!items.unlocks.greyHints" />
+                      <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
+                        <span v-if="!items.unlocks.greyHints">🔒</span>
+                        Grey out completed hints
+                      </span>
+                    </label>
+
+                    <label
+                      class="flex items-center gap-3 group"
+                      :class="items.unlocks.dragPaint ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
+                    >
+                      <input type="checkbox" v-model="dragPainting" class="checkbox-field" :disabled="!items.unlocks.dragPaint" />
+                      <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
+                        <span v-if="!items.unlocks.dragPaint">🔒</span>
+                        Click and drag to paint cells
+                      </span>
+                    </label>
+                  </div>
+                </section>
+                <!-- Puzzle Dimensions -->
+                <section class="space-y-4">
+                  <h3 class="section-heading">Puzzle Dimensions</h3>
+                  <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
+                    <div class="grid grid-cols-2 gap-4">
+                      <div class="space-y-2">
+                        <label for="rows" class="block text-xs font-medium text-neutral-300">Rows</label>
+                        <input
+                          id="rows"
+                          type="number"
+                          min="5"
+                          max="50"
+                          class="input-field"
+                          :value="rows"
+                          @change="(e:any) => setRows(clampInt(e.target.value, 5, 50))"
+                        />
+                      </div>
+                      <div class="space-y-2">
+                        <label for="cols" class="block text-xs font-medium text-neutral-300">Columns</label>
+                        <input
+                          id="cols"
+                          type="number"
+                          min="5"
+                          max="50"
+                          class="input-field"
+                          :value="cols"
+                          :disabled="lockSize"
+                          @change="(e:any) => setCols(clampInt(e.target.value, 5, 50))"
+                        />
                       </div>
                     </div>
-                    <input id="fill-rate" type="range" min="0.2" max="0.7" step="0.01" v-model.number="fillRate" class="slider w-full" />
-                    <div class="flex justify-between text-2xs text-neutral-500">
-                      <span>Sparse (20%)</span>
-                      <span>Dense (70%)</span>
+
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" v-model="lockSize" class="checkbox-field" />
+                      <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Lock aspect ratio (square puzzles) </span>
+                    </label>
+                  </div>
+                </section>
+                <!-- Puzzle Generation -->
+                <section class="space-y-4">
+                  <h3 class="section-heading">Puzzle Generation</h3>
+                  <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
+                    <div class="space-y-3">
+                      <div class="flex items-center justify-between">
+                        <label for="fill-rate" class="text-xs font-medium text-neutral-300"> Fill Density </label>
+                        <div class="flex items-center gap-2">
+                          <span class="px-2 py-1 bg-neutral-600/30 text-neutral-300 rounded-md text-xs font-medium">
+                            {{ Math.round(fillRate * 100) }}%
+                          </span>
+                        </div>
+                      </div>
+                      <input id="fill-rate" type="range" min="0.2" max="0.7" step="0.01" v-model.number="fillRate" class="slider w-full" />
+                      <div class="flex justify-between text-2xs text-neutral-500">
+                        <span>Sparse (20%)</span>
+                        <span>Dense (70%)</span>
+                      </div>
+                    </div>
+
+                    <button type="button" class="btn-primary w-full" @click="randomize()">Generate New Puzzle</button>
+                  </div>
+                </section>
+                <!-- Game Actions -->
+                <section class="space-y-4">
+                  <h3 class="section-heading">Game Actions</h3>
+                  <div class="bg-neutral-800/30 rounded-sm p-4">
+                    <button type="button" class="btn-destructive w-full" @click="clearPlayer()">Clear Progress</button>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <!-- ARCHIPELAGO -->
+            <div v-else-if="activeTab === 'archipelago'" class="space-y-6">
+              <div class="flex items-center gap-3">
+                <div>
+                  <h2 class="font-semibold text-neutral-100">Archipelago Connection</h2>
+                  <p class="text-xs text-neutral-400">Connect to multiplayer server</p>
+                </div>
+              </div>
+
+              <div class="bg-neutral-800/30 rounded-sm p-4 space-y-4">
+                <p class="text-xs text-neutral-400">Enter your server details</p>
+
+                <div class="space-y-3">
+                  <div class="space-y-1">
+                    <label class="text-xs font-medium text-neutral-300">Host</label>
+                    <input v-model="host" class="input-field" placeholder="localhost" />
+                  </div>
+                  <div class="space-y-1">
+                    <label class="text-xs font-medium text-neutral-300">Port</label>
+                    <input v-model.number="port" class="input-field" placeholder="38281" />
+                  </div>
+                  <div class="space-y-1">
+                    <label class="text-xs font-medium text-neutral-300">Player Name</label>
+                    <input v-model="slot" class="input-field" placeholder="Your player name" />
+                  </div>
+                  <div class="space-y-1">
+                    <label class="text-xs font-medium text-neutral-300">Password</label>
+                    <input v-model="password" type="password" class="input-field" placeholder="Optional password" />
+                  </div>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                  <button class="btn-primary flex-1" @click="connect()" :disabled="status === 'connected' || status === 'connecting'">
+                    {{ status === 'connecting' ? 'Connecting…' : 'Connect' }}
+                  </button>
+                  <button class="btn-secondary" @click="disconnect()" :disabled="status !== 'connected'">Disconnect</button>
+                </div>
+
+                <div v-if="lastMessage" class="mt-4 p-3 bg-neutral-900/50 rounded-lg border border-neutral-600">
+                  <div class="text-xs text-neutral-300">
+                    {{ lastMessage }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CHAT -->
+            <div v-else-if="activeTab === 'chat'" class="space-y-6">
+              <div class="flex items-center gap-3">
+                <div>
+                  <h2 class="font-semibold text-neutral-100">Game Log</h2>
+                  <p class="text-xs text-neutral-400">Messages and events</p>
+                </div>
+              </div>
+
+              <div class="bg-neutral-800/30 rounded-sm h-64 overflow-hidden">
+                <div class="h-full p-4 overflow-auto custom-scrollbar">
+                  <div v-if="messageLog.length === 0" class="flex items-center justify-center h-full text-xs text-neutral-500">
+                    <div class="text-center space-y-2">
+                      <div>No messages yet</div>
+                      <div class="text-2xs">Game events will appear here</div>
                     </div>
                   </div>
-
-                  <button type="button" class="btn-primary w-full" @click="randomize()">Generate New Puzzle</button>
-                </div>
-              </section>
-              <!-- Game Actions -->
-              <section class="space-y-4">
-                <h3 class="section-heading">Game Actions</h3>
-                <div class="bg-neutral-800/30 rounded-sm p-4">
-                  <button type="button" class="btn-destructive w-full" @click="clearPlayer()">Clear Progress</button>
-                </div>
-              </section>
-            </div>
-          </div>
-
-          <!-- ARCHIPELAGO -->
-          <div v-else-if="activeTab === 'archipelago'" class="space-y-6">
-            <div class="flex items-center gap-3">
-              <div>
-                <h2 class="font-semibold text-neutral-100">Archipelago Connection</h2>
-                <p class="text-xs text-neutral-400">Connect to multiplayer server</p>
-              </div>
-            </div>
-
-            <div class="bg-neutral-800/30 rounded-sm p-4 space-y-4">
-              <p class="text-xs text-neutral-400">Enter your server details</p>
-
-              <div class="space-y-3">
-                <div class="space-y-1">
-                  <label class="text-xs font-medium text-neutral-300">Host</label>
-                  <input v-model="host" class="input-field" placeholder="localhost" />
-                </div>
-                <div class="space-y-1">
-                  <label class="text-xs font-medium text-neutral-300">Port</label>
-                  <input v-model.number="port" class="input-field" placeholder="38281" />
-                </div>
-                <div class="space-y-1">
-                  <label class="text-xs font-medium text-neutral-300">Player Name</label>
-                  <input v-model="slot" class="input-field" placeholder="Your player name" />
-                </div>
-                <div class="space-y-1">
-                  <label class="text-xs font-medium text-neutral-300">Password</label>
-                  <input v-model="password" type="password" class="input-field" placeholder="Optional password" />
-                </div>
-              </div>
-
-              <div class="flex gap-3 pt-2">
-                <button class="btn-primary flex-1" @click="connect()" :disabled="status === 'connected' || status === 'connecting'">
-                  {{ status === 'connecting' ? 'Connecting…' : 'Connect' }}
-                </button>
-                <button class="btn-secondary" @click="disconnect()" :disabled="status !== 'connected'">Disconnect</button>
-              </div>
-
-              <div v-if="lastMessage" class="mt-4 p-3 bg-neutral-900/50 rounded-lg border border-neutral-600">
-                <div class="text-xs text-neutral-300">
-                  {{ lastMessage }}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- CHAT -->
-          <div v-else-if="activeTab === 'chat'" class="space-y-6">
-            <div class="flex items-center gap-3">
-              <div>
-                <h2 class="font-semibold text-neutral-100">Game Log</h2>
-                <p class="text-xs text-neutral-400">Messages and events</p>
-              </div>
-            </div>
-
-            <div class="bg-neutral-800/30 rounded-sm h-64 overflow-hidden">
-              <div class="h-full p-4 overflow-auto custom-scrollbar">
-                <div v-if="messageLog.length === 0" class="flex items-center justify-center h-full text-xs text-neutral-500">
-                  <div class="text-center space-y-2">
-                    <div>No messages yet</div>
-                    <div class="text-2xs">Game events will appear here</div>
+                  <div v-else class="space-y-2">
+                    <div
+                      v-for="(msg, idx) in messageLog"
+                      :key="idx"
+                      class="text-xs py-1 border-b border-neutral-700/30 last:border-0"
+                      :class="{
+                        'text-lime-300': msg.type === 'item',
+                        'text-red-300': msg.type === 'error',
+                        'text-blue-300': msg.type === 'chat',
+                        'text-neutral-400': msg.type === 'info',
+                      }"
+                    >
+                      <span class="text-neutral-600 mr-2">{{ msg.time.toLocaleTimeString() }}</span>
+                      {{ msg.text }}
+                    </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SHOP / ITEMS -->
+            <div v-else class="space-y-6">
+              <div class="flex items-center gap-3">
+                <div>
+                  <h2 class="font-semibold text-neutral-100">Shop & Items</h2>
+                  <p class="text-xs text-neutral-400">Spend coins and use items</p>
+                </div>
+              </div>
+
+              <!-- Current Resources -->
+              <section class="space-y-3">
+                <h3 class="section-heading">Your Resources</h3>
+                <div class="bg-neutral-800/30 rounded-sm p-4">
+                  <div class="grid grid-cols-2 gap-4">
+                    <div class="flex items-center gap-2">
+                      <span class="text-lg">🪙</span>
+                      <div>
+                        <div class="text-lg font-bold text-amber-400">{{ items.coins.value }}</div>
+                        <div class="text-xs text-neutral-500">Coins</div>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-lg">🎯</span>
+                      <div>
+                        <div class="text-lg font-bold text-cyan-400">{{ items.randomCellSolves.value }}</div>
+                        <div class="text-xs text-neutral-500">Cell Solves</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Use Items -->
+              <section class="space-y-3">
+                <h3 class="section-heading">Use Items</h3>
+                <div class="bg-neutral-800/30 rounded-sm p-4 space-y-3">
+                  <button
+                    class="w-full px-4 py-3 rounded text-sm font-medium transition-colors flex items-center justify-between"
+                    :class="
+                      items.randomCellSolves.value > 0
+                        ? 'bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30'
+                        : 'bg-neutral-700/30 text-neutral-500 cursor-not-allowed'
+                    "
+                    :disabled="items.randomCellSolves.value <= 0"
+                    @click="useRandomCellSolve()"
+                  >
+                    <span>🎯 Solve Random Cell</span>
+                    <span class="text-xs opacity-70">{{ items.randomCellSolves.value }} available</span>
+                  </button>
+                </div>
+              </section>
+
+              <!-- Shop -->
+              <section class="space-y-3">
+                <h3 class="section-heading">Shop</h3>
+                <div class="bg-neutral-800/30 rounded-sm p-4 space-y-3">
+                  <button
+                    class="w-full px-4 py-3 rounded text-sm font-medium transition-colors flex items-center justify-between"
+                    :class="
+                      items.coins.value >= items.RANDOM_CELL_SOLVE_COST
+                        ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                        : 'bg-neutral-700/30 text-neutral-500 cursor-not-allowed'
+                    "
+                    :disabled="items.coins.value < items.RANDOM_CELL_SOLVE_COST"
+                    @click="buyAndUseRandomCellSolve()"
+                  >
+                    <span>🎯 Buy & Use Random Cell Solve</span>
+                    <span class="text-xs">🪙 {{ items.RANDOM_CELL_SOLVE_COST }}</span>
+                  </button>
+                </div>
+              </section>
+
+              <!-- Unlocked Items -->
+              <section class="space-y-3">
+                <h3 class="section-heading flex items-center gap-2">
+                  <span class="text-lime-400">✓</span> Unlocked ({{ unlockedNonConsumables.length }})
+                </h3>
+                <div v-if="unlockedNonConsumables.length === 0" class="text-xs text-neutral-500 italic p-3 bg-neutral-800/20 rounded">
+                  No items unlocked yet
+                </div>
+                <div v-else class="space-y-2">
+                  <div v-for="item in unlockedNonConsumables" :key="item.id" class="p-3 bg-lime-500/10 border border-lime-500/20 rounded-sm">
+                    <div class="flex items-start justify-between">
+                      <div>
+                        <div class="text-sm font-medium text-lime-300">{{ item.name }}</div>
+                        <div class="text-xs text-neutral-400">{{ item.description }}</div>
+                      </div>
+                      <span class="px-2 py-0.5 bg-lime-500/20 text-lime-300 rounded text-xs">{{ item.category }}</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Locked Items -->
+              <section class="space-y-3">
+                <h3 class="section-heading flex items-center gap-2">
+                  <span class="text-neutral-500">🔒</span> Locked ({{ lockedNonConsumables.length }})
+                </h3>
+                <div v-if="lockedNonConsumables.length === 0" class="text-xs text-lime-400 italic p-3 bg-neutral-800/20 rounded">
+                  All items unlocked! 🎉
                 </div>
                 <div v-else class="space-y-2">
                   <div
-                    v-for="(msg, idx) in messageLog"
-                    :key="idx"
-                    class="text-xs py-1 border-b border-neutral-700/30 last:border-0"
-                    :class="{
-                      'text-lime-300': msg.type === 'item',
-                      'text-red-300': msg.type === 'error',
-                      'text-blue-300': msg.type === 'chat',
-                      'text-neutral-400': msg.type === 'info',
-                    }"
-                  >
-                    <span class="text-neutral-600 mr-2">{{ msg.time.toLocaleTimeString() }}</span>
-                    {{ msg.text }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- SHOP / ITEMS -->
-          <div v-else class="space-y-6">
-            <div class="flex items-center gap-3">
-              <div>
-                <h2 class="font-semibold text-neutral-100">Shop & Items</h2>
-                <p class="text-xs text-neutral-400">Spend coins and use items</p>
-              </div>
-            </div>
-
-            <!-- Current Resources -->
-            <section class="space-y-3">
-              <h3 class="section-heading">Your Resources</h3>
-              <div class="bg-neutral-800/30 rounded-sm p-4">
-                <div class="grid grid-cols-2 gap-4">
-                  <div class="flex items-center gap-2">
-                    <span class="text-lg">🪙</span>
-                    <div>
-                      <div class="text-lg font-bold text-amber-400">{{ items.coins.value }}</div>
-                      <div class="text-xs text-neutral-500">Coins</div>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <span class="text-lg">🎯</span>
-                    <div>
-                      <div class="text-lg font-bold text-cyan-400">{{ items.randomCellSolves.value }}</div>
-                      <div class="text-xs text-neutral-500">Cell Solves</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <!-- Use Items -->
-            <section class="space-y-3">
-              <h3 class="section-heading">Use Items</h3>
-              <div class="bg-neutral-800/30 rounded-sm p-4 space-y-3">
-                <button
-                  class="w-full px-4 py-3 rounded text-sm font-medium transition-colors flex items-center justify-between"
-                  :class="
-                    items.randomCellSolves.value > 0
-                      ? 'bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30'
-                      : 'bg-neutral-700/30 text-neutral-500 cursor-not-allowed'
-                  "
-                  :disabled="items.randomCellSolves.value <= 0"
-                  @click="useRandomCellSolve()"
-                >
-                  <span>🎯 Solve Random Cell</span>
-                  <span class="text-xs opacity-70">{{ items.randomCellSolves.value }} available</span>
-                </button>
-              </div>
-            </section>
-
-            <!-- Shop -->
-            <section class="space-y-3">
-              <h3 class="section-heading">Shop</h3>
-              <div class="bg-neutral-800/30 rounded-sm p-4 space-y-3">
-                <button
-                  class="w-full px-4 py-3 rounded text-sm font-medium transition-colors flex items-center justify-between"
-                  :class="
-                    items.coins.value >= items.RANDOM_CELL_SOLVE_COST
-                      ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-                      : 'bg-neutral-700/30 text-neutral-500 cursor-not-allowed'
-                  "
-                  :disabled="items.coins.value < items.RANDOM_CELL_SOLVE_COST"
-                  @click="buyAndUseRandomCellSolve()"
-                >
-                  <span>🎯 Buy & Use Random Cell Solve</span>
-                  <span class="text-xs">🪙 {{ items.RANDOM_CELL_SOLVE_COST }}</span>
-                </button>
-              </div>
-            </section>
-
-            <!-- Unlocked Items -->
-            <section class="space-y-3">
-              <h3 class="section-heading flex items-center gap-2">
-                <span class="text-lime-400">✓</span> Unlocked ({{ items.unlockedItems.value.length }})
-              </h3>
-              <div v-if="items.unlockedItems.value.length === 0" class="text-xs text-neutral-500 italic p-3 bg-neutral-800/20 rounded">
-                No items unlocked yet
-              </div>
-              <div v-else class="space-y-2">
-                <div v-for="item in items.unlockedItems.value" :key="item.id" class="p-3 bg-lime-500/10 border border-lime-500/20 rounded-sm">
-                  <div class="flex items-start justify-between">
-                    <div>
-                      <div class="text-sm font-medium text-lime-300">{{ item.name }}</div>
-                      <div class="text-xs text-neutral-400">{{ item.description }}</div>
-                    </div>
-                    <span class="px-2 py-0.5 bg-lime-500/20 text-lime-300 rounded text-xs">{{ item.category }}</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <!-- Locked Items -->
-            <section class="space-y-3">
-              <h3 class="section-heading flex items-center gap-2">
-                <span class="text-neutral-500">🔒</span> Locked ({{ items.lockedItems.value.length }})
-              </h3>
-              <div v-if="items.lockedItems.value.length === 0" class="text-xs text-lime-400 italic p-3 bg-neutral-800/20 rounded">
-                All items unlocked! 🎉
-              </div>
-              <div v-else class="space-y-2">
-                <div
-                  v-for="item in items.lockedItems.value"
-                  :key="item.id"
-                  class="p-3 bg-neutral-800/30 border border-neutral-700/30 rounded-sm opacity-60"
-                >
-                  <div class="flex items-start justify-between">
-                    <div>
-                      <div class="text-sm font-medium text-neutral-300">{{ item.name }}</div>
-                      <div class="text-xs text-neutral-500">{{ item.description }}</div>
-                    </div>
-                    <span class="px-2 py-0.5 bg-neutral-700/30 text-neutral-500 rounded text-xs">{{ item.category }}</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <!-- Debug: Test Item Reception -->
-            <section v-if="showDebugGrid" class="space-y-3">
-              <h3 class="section-heading">Debug: Simulate Items</h3>
-              <div class="bg-neutral-800/30 rounded-sm p-4 space-y-2">
-                <p class="text-xs text-neutral-400 mb-3">Click to simulate receiving an item from Archipelago:</p>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    v-for="item in items.ITEM_REGISTRY"
+                    v-for="item in lockedNonConsumables"
                     :key="item.id"
-                    class="px-2 py-1 text-xs rounded transition-colors"
-                    :class="
+                    class="p-3 bg-neutral-800/30 border border-neutral-700/30 rounded-sm opacity-60"
+                  >
+                    <div class="flex items-start justify-between">
+                      <div>
+                        <div class="text-sm font-medium text-neutral-300">{{ item.name }}</div>
+                        <div class="text-xs text-neutral-500">{{ item.description }}</div>
+                      </div>
+                      <span class="px-2 py-0.5 bg-neutral-700/30 text-neutral-500 rounded text-xs">{{ item.category }}</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Debug: Test Item Reception -->
+              <section v-if="showDebugGrid" class="space-y-3">
+                <h3 class="section-heading">Debug: Simulate Items</h3>
+                <div class="bg-neutral-800/30 rounded-sm p-4 space-y-2">
+                  <p class="text-xs text-neutral-400 mb-3">Click to simulate receiving an item from Archipelago:</p>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      v-for="item in items.ITEM_REGISTRY"
+                      :key="item.id"
+                      class="px-2 py-1 text-xs rounded transition-colors"
+                      :class="
                       items.hasItem(item.id) && ![items.AP_ITEMS.EXTRA_LIFE, items.AP_ITEMS.COINS_BUNDLE, items.AP_ITEMS.UNLOCK_HINTS, items.AP_ITEMS.SOLVE_RANDOM_CELL].includes(item.id as any)
                         ? 'bg-lime-500/20 text-lime-300 cursor-default'
                         : 'bg-neutral-700 hover:bg-neutral-600 text-neutral-200'
                     "
-                    :disabled="items.hasItem(item.id) && ![items.AP_ITEMS.EXTRA_LIFE, items.AP_ITEMS.COINS_BUNDLE, items.AP_ITEMS.UNLOCK_HINTS, items.AP_ITEMS.SOLVE_RANDOM_CELL].includes(item.id as any)"
-                    @click="debugReceiveItem(item.id)"
-                  >
-                    {{ item.name }}
-                    <span v-if="item.id === items.AP_ITEMS.EXTRA_LIFE" class="text-lime-400">(+{{ items.extraLives.value }})</span>
-                    <span v-if="item.id === items.AP_ITEMS.COINS_BUNDLE" class="text-amber-400">({{ items.coins.value }})</span>
-                    <span v-if="item.id === items.AP_ITEMS.UNLOCK_HINTS" class="text-purple-400">({{ items.hintReveals.value }})</span>
-                    <span v-if="item.id === items.AP_ITEMS.SOLVE_RANDOM_CELL" class="text-cyan-400">({{ items.randomCellSolves.value }})</span>
-                  </button>
+                      :disabled="items.hasItem(item.id) && ![items.AP_ITEMS.EXTRA_LIFE, items.AP_ITEMS.COINS_BUNDLE, items.AP_ITEMS.UNLOCK_HINTS, items.AP_ITEMS.SOLVE_RANDOM_CELL].includes(item.id as any)"
+                      @click="debugReceiveItem(item.id)"
+                    >
+                      {{ item.name }}
+                      <span v-if="item.id === items.AP_ITEMS.EXTRA_LIFE" class="text-lime-400">(+{{ items.extraLives.value }})</span>
+                      <span v-if="item.id === items.AP_ITEMS.COINS_BUNDLE" class="text-amber-400">({{ items.coins.value }})</span>
+                      <span v-if="item.id === items.AP_ITEMS.UNLOCK_HINTS" class="text-purple-400">({{ items.hintReveals.value }})</span>
+                      <span v-if="item.id === items.AP_ITEMS.SOLVE_RANDOM_CELL" class="text-cyan-400">({{ items.randomCellSolves.value }})</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            </div>
           </div>
         </div>
       </div>
@@ -1019,18 +1035,27 @@
 
     <!-- Bottom status bar -->
     <footer class="shrink-0 border-t border-neutral-700/50 bg-neutral-950/90 backdrop-blur-lg">
-      <div class="max-w-6xl mx-auto px-6 py-4">
-        <div class="flex justify-between gap-4">
-          <div class="text-xs text-neutral-400">
-            Left click: fill&nbsp;&nbsp;•&nbsp;&nbsp;Right click: X&nbsp;&nbsp;•&nbsp;&nbsp;Shift+click (or same click used): erase
-          </div>
-          <div class="status-indicator">
-            <span class="status-dot" :class="statusMeta.dot"></span>
-            <span class="text-neutral-400 font-medium">Archipelago</span>
-            <span :class="statusMeta.text" class="font-semibold">{{ statusMeta.label }}</span>
+      <div class="px-6 py-3">
+        <div class="flex items-center gap-4">
+          <!-- Left side: Status indicator and controls info -->
+          <div class="flex items-center gap-4 w-1/2">
+            <div class="status-indicator shrink-0">
+              <span class="status-dot" :class="statusMeta.dot"></span>
+              <span class="text-neutral-400 font-medium">Archipelago</span>
+              <span :class="statusMeta.text" class="font-semibold">{{ statusMeta.label }}</span>
+            </div>
+            <div class="text-xs text-neutral-500 hidden lg:block">
+              Left click: fill &nbsp;&nbsp;•&nbsp;&nbsp; Right click: X &nbsp;&nbsp;•&nbsp;&nbsp; Shift+click or click again: erase
+            </div>
           </div>
 
-          <div class="text-xs text-neutral-400 truncate max-w-md" v-if="lastMessage"><span class="opacity-60">Latest:</span> {{ lastMessage }}</div>
+          <!-- Right side: Latest message (always takes half) -->
+          <div class="w-1/2 text-xs text-neutral-400 truncate text-right">
+            <span v-if="lastMessage" :key="lastMessage" class="inline-block animate-message-flash">
+              <span class="opacity-60">Latest:</span> {{ lastMessage }}
+            </span>
+            <span v-else class="opacity-40">No messages</span>
+          </div>
         </div>
       </div>
     </footer>

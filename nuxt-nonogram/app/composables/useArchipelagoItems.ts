@@ -147,9 +147,9 @@ export function useArchipelagoItems() {
   const unlimitedLives = ref(false); // Setting for unlimited lives (independent of AP mode)
 
   // Coins system
-  const startingCoins = ref(0); // Starting coins (configurable)
+  const startingCoins = ref(5); // Starting coins (configurable)
   const coins = ref(0); // Current coins
-  const coinsPerBundle = ref(10); // Coins received from AP bundle (configurable)
+  const coinsPerBundle = ref(5); // Coins received from AP bundle (configurable)
   const unlimitedCoins = ref(false); // Setting for unlimited coins (independent of AP mode)
 
   // Random cell solve tokens
@@ -350,7 +350,6 @@ export function useArchipelagoItems() {
   const RANDOM_CELL_SOLVE_COST = 5;
   function buyRandomCellSolve(): boolean {
     if (spendCoins(RANDOM_CELL_SOLVE_COST)) {
-      randomCellSolves.value += 1;
       return true;
     }
     return false;
