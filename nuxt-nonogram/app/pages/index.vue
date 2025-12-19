@@ -39,7 +39,7 @@
   const checkPulse = ref(false);
   const autoX = ref(true);
   const greyCompletedHints = ref(true);
-  const showDebugGrid = ref(true);
+  const showDebugGrid = ref(false);
   const dragPainting = ref(true);
   const coinsPerLine = ref(1); // Coins earned per completed row/column
 
@@ -379,10 +379,6 @@
   <!-- Loading Screen -->
   <div v-if="isLoading" class="fixed inset-0 z-50 bg-neutral-950 flex flex-col items-center justify-center">
     <div class="text-center space-y-6">
-      <div class="relative">
-        <!-- Spinning loader -->
-        <div class="w-16 h-16 border-4 border-neutral-700 border-t-accent-400 rounded-full animate-spin"></div>
-      </div>
       <div class="space-y-2">
         <h1 class="text-2xl font-bold text-neutral-100">Archipelago Nonogram</h1>
         <p class="text-sm text-neutral-400">Loading puzzle...</p>
@@ -1053,7 +1049,10 @@
                   >
                     <div class="text-left">
                       <span>📈 Increase Difficulty</span>
-                      <div class="text-[10px] opacity-70">{{ items.currentDifficulty.value }}x{{ items.currentDifficulty.value }} → {{ items.currentDifficulty.value + items.DIFFICULTY_STEP }}x{{ items.currentDifficulty.value + items.DIFFICULTY_STEP }}</div>
+                      <div class="text-[10px] opacity-70">
+                        {{ items.currentDifficulty.value }}x{{ items.currentDifficulty.value }} →
+                        {{ items.currentDifficulty.value + items.DIFFICULTY_STEP }}x{{ items.currentDifficulty.value + items.DIFFICULTY_STEP }}
+                      </div>
                     </div>
                     <span class="text-xs">🪙 {{ items.DIFFICULTY_INCREASE_COST.value }}</span>
                   </button>

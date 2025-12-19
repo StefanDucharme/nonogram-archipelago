@@ -49,7 +49,6 @@ export const AP_ITEMS = {
 export const AP_LOCATIONS = {
   // Milestone checks
   FIRST_LINE_COMPLETED: 9000001,
-  FIRST_PUZZLE_COMPLETED: 9000002,
   // Consecutive puzzles completed (1, 2, 4, 8, 16, 32, 64)
   PUZZLES_COMPLETED_1: 9000010,
   PUZZLES_COMPLETED_2: 9000011,
@@ -70,7 +69,6 @@ export interface LocationDefinition {
 
 export const LOCATION_REGISTRY: LocationDefinition[] = [
   { id: AP_LOCATIONS.FIRST_LINE_COMPLETED, name: 'First Line', description: 'Complete your first row or column' },
-  { id: AP_LOCATIONS.FIRST_PUZZLE_COMPLETED, name: 'First Puzzle', description: 'Complete your first puzzle' },
   { id: AP_LOCATIONS.PUZZLES_COMPLETED_1, name: '1 Puzzle', description: 'Complete 1 puzzle', threshold: 1 },
   { id: AP_LOCATIONS.PUZZLES_COMPLETED_2, name: '2 Puzzles', description: 'Complete 2 puzzles', threshold: 2 },
   { id: AP_LOCATIONS.PUZZLES_COMPLETED_4, name: '4 Puzzles', description: 'Complete 4 puzzles', threshold: 4 },
@@ -487,12 +485,6 @@ export function useArchipelagoItems() {
 
     puzzlesCompleted.value += 1;
     const newChecks: number[] = [];
-
-    // First puzzle check
-    if (puzzlesCompleted.value === 1 && !completedChecks.value.has(AP_LOCATIONS.FIRST_PUZZLE_COMPLETED)) {
-      completedChecks.value.add(AP_LOCATIONS.FIRST_PUZZLE_COMPLETED);
-      newChecks.push(AP_LOCATIONS.FIRST_PUZZLE_COMPLETED);
-    }
 
     // Consecutive puzzle checks
     const thresholds = [
