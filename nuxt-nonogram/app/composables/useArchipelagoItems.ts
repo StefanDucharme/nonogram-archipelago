@@ -47,12 +47,38 @@ export const AP_ITEMS = {
 // LOCATION IDS - Checks sent TO Archipelago
 // ============================================
 export const AP_LOCATIONS = {
-  SOLVE_PUZZLE: 9000001,
-  // Future locations:
-  // SOLVE_5X5: 9000002,
-  // SOLVE_10X10: 9000003,
-  // SOLVE_WITHOUT_MISTAKES: 9000004,
+  // Milestone checks
+  FIRST_LINE_COMPLETED: 9000001,
+  FIRST_PUZZLE_COMPLETED: 9000002,
+  // Consecutive puzzles completed (1, 2, 4, 8, 16, 32, 64)
+  PUZZLES_COMPLETED_1: 9000010,
+  PUZZLES_COMPLETED_2: 9000011,
+  PUZZLES_COMPLETED_4: 9000012,
+  PUZZLES_COMPLETED_8: 9000013,
+  PUZZLES_COMPLETED_16: 9000014,
+  PUZZLES_COMPLETED_32: 9000015,
+  PUZZLES_COMPLETED_64: 9000016,
 } as const;
+
+// Location registry for UI display
+export interface LocationDefinition {
+  id: number;
+  name: string;
+  description: string;
+  threshold?: number; // For consecutive puzzle checks
+}
+
+export const LOCATION_REGISTRY: LocationDefinition[] = [
+  { id: AP_LOCATIONS.FIRST_LINE_COMPLETED, name: 'First Line', description: 'Complete your first row or column' },
+  { id: AP_LOCATIONS.FIRST_PUZZLE_COMPLETED, name: 'First Puzzle', description: 'Complete your first puzzle' },
+  { id: AP_LOCATIONS.PUZZLES_COMPLETED_1, name: '1 Puzzle', description: 'Complete 1 puzzle', threshold: 1 },
+  { id: AP_LOCATIONS.PUZZLES_COMPLETED_2, name: '2 Puzzles', description: 'Complete 2 puzzles', threshold: 2 },
+  { id: AP_LOCATIONS.PUZZLES_COMPLETED_4, name: '4 Puzzles', description: 'Complete 4 puzzles', threshold: 4 },
+  { id: AP_LOCATIONS.PUZZLES_COMPLETED_8, name: '8 Puzzles', description: 'Complete 8 puzzles', threshold: 8 },
+  { id: AP_LOCATIONS.PUZZLES_COMPLETED_16, name: '16 Puzzles', description: 'Complete 16 puzzles', threshold: 16 },
+  { id: AP_LOCATIONS.PUZZLES_COMPLETED_32, name: '32 Puzzles', description: 'Complete 32 puzzles', threshold: 32 },
+  { id: AP_LOCATIONS.PUZZLES_COMPLETED_64, name: '64 Puzzles', description: 'Complete 64 puzzles', threshold: 64 },
+];
 
 // ============================================
 // ITEM REGISTRY - For UI and documentation
@@ -134,12 +160,14 @@ export function useArchipelagoItems() {
   const archipelagoMode = ref(false);
 
   // Hint reveal system - tracks how many row/col hints to reveal per puzzle
+  const startingHintReveals = ref(1); // Starting hints revealed setting (configurable)
   const hintReveals = ref(0); // Number of hints revealed (permanent, stackable)
   const revealedRows = ref<Set<number>>(new Set()); // Which row hints are revealed for current puzzle
   const revealedCols = ref<Set<number>>(new Set()); // Which col hints are revealed for current puzzle
   const allHintsRevealed = computed(() => !archipelagoMode.value); // In free play, all hints shown
   const currentPuzzleRows = ref(0); // Track current puzzle dimensions for re-selecting hints
   const currentPuzzleCols = ref(0);
+  const totalHintReveals = computed(() => startingHintReveals.value + hintReveals.value); // Total hints to reveal
 
   // Lives system
   const baseLives = ref(3); // Default starting lives per puzzle (configurable)
@@ -156,6 +184,20 @@ export function useArchipelagoItems() {
 
   // Random cell solve tokens
   const randomCellSolves = ref(0); // Number of random cell solves available
+
+  // Temporary hint reveals (only for current puzzle, purchased from shop)
+  const tempHintReveals = ref(0); // Temporary hints for current puzzle
+  const TEMP_HINT_COST = ref(5); // Cost to buy a temporary hint reveal
+
+  // Difficulty system
+  const currentDifficulty = ref(5); // Starting grid size (5x5)
+  const DIFFICULTY_INCREASE_COST = ref(30); // Cost to increase difficulty
+  const DIFFICULTY_STEP = 5; // How much to increase per purchase
+
+  // Check/Location tracking
+  const completedChecks = ref<Set<number>>(new Set()); // Location IDs that have been sent
+  const puzzlesCompleted = ref(0); // Total puzzles completed
+  const firstLineCompleted = ref(false); // Has any line been completed ever
 
   // Track received items for the UI
   const receivedItems = ref<number[]>([]);
@@ -233,10 +275,15 @@ export function useArchipelagoItems() {
     extraLives.value = 0;
     currentLives.value = baseLives.value;
     coins.value = startingCoins.value;
-    hintReveals.value = 0;
+    hintReveals.value = 0; // Reset bonus hints, startingHintReveals will be used as base
     revealedRows.value = new Set();
     revealedCols.value = new Set();
     randomCellSolves.value = 0;
+    tempHintReveals.value = 0;
+    currentDifficulty.value = 5; // Reset to easy (5x5)
+    completedChecks.value = new Set();
+    puzzlesCompleted.value = 0;
+    firstLineCompleted.value = false;
   }
 
   // Disable Archipelago mode (unlock everything for free play)
@@ -301,7 +348,7 @@ export function useArchipelagoItems() {
     if (!archipelagoMode.value) return; // In free play, all hints shown via allHintsRevealed
 
     const totalHints = totalRows + totalCols;
-    const hintsToReveal = Math.min(hintReveals.value, totalHints);
+    const hintsToReveal = Math.min(totalHintReveals.value, totalHints);
 
     // Create array of all possible hint indices (0 to totalRows-1 for rows, totalRows to totalRows+totalCols-1 for cols)
     const allIndices: Array<{ type: 'row' | 'col'; index: number }> = [];
@@ -397,6 +444,87 @@ export function useArchipelagoItems() {
     return false;
   }
 
+  // Buy a temporary hint reveal (only for current puzzle)
+  function buyTempHintReveal(): boolean {
+    if (spendCoins(TEMP_HINT_COST.value)) {
+      tempHintReveals.value += 1;
+      addRandomHintReveal(); // Immediately reveal a new hint
+      return true;
+    }
+    return false;
+  }
+
+  // Reset temporary hints for new puzzle
+  function resetTempHintsForNewPuzzle() {
+    tempHintReveals.value = 0;
+  }
+
+  // Buy difficulty increase
+  function buyDifficultyIncrease(): boolean {
+    if (spendCoins(DIFFICULTY_INCREASE_COST.value)) {
+      currentDifficulty.value += DIFFICULTY_STEP;
+      return true;
+    }
+    return false;
+  }
+
+  // Mark first line as completed and return the location ID if it's a new check
+  function markFirstLineCompleted(): number | null {
+    if (!archipelagoMode.value) return null;
+    if (firstLineCompleted.value) return null;
+
+    firstLineCompleted.value = true;
+    if (!completedChecks.value.has(AP_LOCATIONS.FIRST_LINE_COMPLETED)) {
+      completedChecks.value.add(AP_LOCATIONS.FIRST_LINE_COMPLETED);
+      return AP_LOCATIONS.FIRST_LINE_COMPLETED;
+    }
+    return null;
+  }
+
+  // Mark puzzle as completed and return any new location IDs that should be sent
+  function markPuzzleCompleted(): number[] {
+    if (!archipelagoMode.value) return [];
+
+    puzzlesCompleted.value += 1;
+    const newChecks: number[] = [];
+
+    // First puzzle check
+    if (puzzlesCompleted.value === 1 && !completedChecks.value.has(AP_LOCATIONS.FIRST_PUZZLE_COMPLETED)) {
+      completedChecks.value.add(AP_LOCATIONS.FIRST_PUZZLE_COMPLETED);
+      newChecks.push(AP_LOCATIONS.FIRST_PUZZLE_COMPLETED);
+    }
+
+    // Consecutive puzzle checks
+    const thresholds = [
+      { count: 1, location: AP_LOCATIONS.PUZZLES_COMPLETED_1 },
+      { count: 2, location: AP_LOCATIONS.PUZZLES_COMPLETED_2 },
+      { count: 4, location: AP_LOCATIONS.PUZZLES_COMPLETED_4 },
+      { count: 8, location: AP_LOCATIONS.PUZZLES_COMPLETED_8 },
+      { count: 16, location: AP_LOCATIONS.PUZZLES_COMPLETED_16 },
+      { count: 32, location: AP_LOCATIONS.PUZZLES_COMPLETED_32 },
+      { count: 64, location: AP_LOCATIONS.PUZZLES_COMPLETED_64 },
+    ];
+
+    for (const { count, location } of thresholds) {
+      if (puzzlesCompleted.value >= count && !completedChecks.value.has(location)) {
+        completedChecks.value.add(location);
+        newChecks.push(location);
+      }
+    }
+
+    return newChecks;
+  }
+
+  // Get location definition by ID
+  function getLocationDefinition(locationId: number): LocationDefinition | undefined {
+    return LOCATION_REGISTRY.find((loc) => loc.id === locationId);
+  }
+
+  // Check if a location has been completed
+  function isLocationCompleted(locationId: number): boolean {
+    return completedChecks.value.has(locationId);
+  }
+
   // Get list of locked items (for UI display)
   const lockedItems = computed(() => {
     return ITEM_REGISTRY.filter((item) => !receivedItems.value.includes(item.id));
@@ -430,14 +558,29 @@ export function useArchipelagoItems() {
     unlimitedCoins,
 
     // Hints
+    startingHintReveals,
     hintReveals,
+    totalHintReveals,
     revealedRows,
     revealedCols,
     allHintsRevealed,
+    tempHintReveals,
+    TEMP_HINT_COST,
 
     // Random Cell Solves
     randomCellSolves,
     RANDOM_CELL_SOLVE_COST,
+
+    // Difficulty
+    currentDifficulty,
+    DIFFICULTY_INCREASE_COST,
+    DIFFICULTY_STEP,
+
+    // Checks/Locations
+    completedChecks,
+    puzzlesCompleted,
+    firstLineCompleted,
+    LOCATION_REGISTRY,
 
     // Item registry
     ITEM_REGISTRY,
@@ -448,10 +591,13 @@ export function useArchipelagoItems() {
     receiveItem,
     hasItem,
     getItemDefinition,
+    getLocationDefinition,
+    isLocationCompleted,
     enableArchipelagoMode,
     disableArchipelagoMode,
     resetUnlocks,
     resetLivesForNewPuzzle,
+    resetTempHintsForNewPuzzle,
     loseLife,
     addCoins,
     spendCoins,
@@ -460,6 +606,10 @@ export function useArchipelagoItems() {
     isColHintRevealed,
     useRandomCellSolve,
     buyRandomCellSolve,
+    buyTempHintReveal,
+    buyDifficultyIncrease,
+    markFirstLineCompleted,
+    markPuzzleCompleted,
 
     // Computed
     lockedItems,

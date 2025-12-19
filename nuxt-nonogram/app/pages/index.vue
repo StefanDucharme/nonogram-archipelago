@@ -58,6 +58,7 @@
   // Track completed rows/columns to award coins only once
   const completedRows = ref<Set<number>>(new Set());
   const completedCols = ref<Set<number>>(new Set());
+  const hasCompletedFirstLine = ref(false); // Track if we've sent first line check this session
 
   // Check for newly completed rows/columns and award coins
   function checkLineCompletions() {
@@ -80,6 +81,11 @@
       if (rowComplete) {
         completedRows.value.add(r);
         items.addCoins(coinsPerLine.value);
+        // Check for first line completion
+        if (!hasCompletedFirstLine.value) {
+          hasCompletedFirstLine.value = true;
+          items.markFirstLineCompleted();
+        }
       }
     }
 
@@ -100,6 +106,11 @@
       if (colComplete) {
         completedCols.value.add(c);
         items.addCoins(coinsPerLine.value);
+        // Check for first line completion
+        if (!hasCompletedFirstLine.value) {
+          hasCompletedFirstLine.value = true;
+          items.markFirstLineCompleted();
+        }
       }
     }
   }
@@ -116,13 +127,11 @@
     const currentState = player.value[r]?.[c];
     const shouldBeFilled = solution.value[r]?.[c] === 1;
 
-    // Block erasing correct cells
-    if (mode === 'erase') {
-      const wasCorrectFill = currentState === 'fill' && shouldBeFilled;
-      const wasCorrectX = currentState === 'x' && !shouldBeFilled;
-      if (wasCorrectFill || wasCorrectX) {
-        return; // Can't erase correct cells
-      }
+    // Block changing correct cells (can't erase or toggle off correct answers)
+    const isCorrectFill = currentState === 'fill' && shouldBeFilled;
+    const isCorrectX = currentState === 'x' && !shouldBeFilled;
+    if (isCorrectFill || isCorrectX) {
+      return; // Can't modify correct cells
     }
 
     // Apply the change
@@ -210,6 +219,19 @@
     }
   }
 
+  // Buy a temporary hint reveal
+  function buyTempHint() {
+    items.buyTempHintReveal();
+  }
+
+  // Buy difficulty increase
+  function buyDifficultyIncrease() {
+    if (items.buyDifficultyIncrease()) {
+      // Regenerate puzzle at new difficulty
+      randomize();
+    }
+  }
+
   function checkAll() {
     if (!items.unlocks.checkMistakes) return;
     checkPulse.value = true;
@@ -217,7 +239,10 @@
   }
 
   watchEffect(() => {
-    if (solved.value) checkPuzzleSolved();
+    if (solved.value) {
+      checkPuzzleSolved();
+      items.markPuzzleCompleted();
+    }
   });
 
   function clampInt(v: any, min: number, max: number) {
@@ -227,7 +252,7 @@
   }
 
   /** Right panel tabs */
-  type RightTab = 'archipelago' | 'settings' | 'chat' | 'shop';
+  type RightTab = 'archipelago' | 'settings' | 'chat' | 'shop' | 'debug';
   const activeTab = ref<RightTab>('settings');
 
   /** Keep rows & cols equal */
@@ -261,11 +286,20 @@
   });
 
   function randomize() {
+    // In archipelago mode, use the current difficulty setting
+    const size = items.archipelagoMode.value ? items.currentDifficulty.value : rows.value;
     // When locked, ensure square randomize
-    if (lockSize.value) newRandom(rows.value, rows.value);
-    else newRandom(rows.value, cols.value);
+    if (lockSize.value) newRandom(size, size);
+    else newRandom(items.archipelagoMode.value ? size : rows.value, items.archipelagoMode.value ? size : cols.value);
+    // Update rows/cols refs to match
+    if (items.archipelagoMode.value) {
+      rows.value = size;
+      cols.value = size;
+    }
     // Reset lives for new puzzle
     items.resetLivesForNewPuzzle();
+    // Reset temporary hints
+    items.resetTempHintsForNewPuzzle();
     // Reset completed line tracking
     completedRows.value = new Set();
     completedCols.value = new Set();
@@ -523,7 +557,7 @@
         style="box-shadow: -8px 0 32px rgba(0, 0, 0, 0.3)"
       >
         <!-- Active Abilities Panel - left side of right panel -->
-        <div class="w-40 shrink-0 p-3 border-r border-neutral-700/50 bg-neutral-900/95 overflow-auto">
+        <div class="w-44 shrink-0 p-3 border-r border-neutral-700/50 bg-neutral-900/95 overflow-auto">
           <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">Abilities</h3>
           <div class="space-y-2">
             <!-- Place X Markers -->
@@ -549,12 +583,34 @@
             <!-- Hint Reveals -->
             <div
               class="flex items-center gap-1.5 text-xs"
-              :class="items.hintReveals.value > 0 || !items.archipelagoMode.value ? 'text-lime-400' : 'text-neutral-500'"
+              :class="items.totalHintReveals.value > 0 || !items.archipelagoMode.value ? 'text-lime-400' : 'text-neutral-500'"
             >
-              <span>{{ items.archipelagoMode.value ? items.hintReveals.value : '∞' }}</span>
+              <span>{{ items.archipelagoMode.value ? items.totalHintReveals.value : '∞' }}</span>
               <span>Hints</span>
             </div>
+            <!-- Difficulty -->
+            <div v-if="items.archipelagoMode.value" class="flex items-center gap-1.5 text-xs text-purple-400">
+              <span>{{ items.currentDifficulty.value }}x{{ items.currentDifficulty.value }}</span>
+              <span>Grid</span>
+            </div>
           </div>
+
+          <!-- Checks Section -->
+          <div v-if="items.archipelagoMode.value" class="mt-3 pt-3 border-t border-neutral-700/50">
+            <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Checks</h3>
+            <div class="space-y-1">
+              <div
+                v-for="loc in items.LOCATION_REGISTRY"
+                :key="loc.id"
+                class="flex items-center gap-1.5 text-[10px]"
+                :class="items.isLocationCompleted(loc.id) ? 'text-lime-400' : 'text-neutral-600'"
+              >
+                <span>{{ items.isLocationCompleted(loc.id) ? '✓' : '○' }}</span>
+                <span>{{ loc.name }}</span>
+              </div>
+            </div>
+          </div>
+
           <div class="mt-3 pt-3 border-t border-neutral-700/50 text-[10px] text-neutral-500 leading-tight">
             <span v-if="items.archipelagoMode.value">Unlock via AP</span>
             <span v-else>Free Play</span>
@@ -569,6 +625,7 @@
             <button class="tab-button" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">Settings</button>
             <button class="tab-button" :class="{ active: activeTab === 'chat' }" @click="activeTab = 'chat'">Chat</button>
             <button class="tab-button" :class="{ active: activeTab === 'shop' }" @click="activeTab = 'shop'">Shop</button>
+            <button class="tab-button" :class="{ active: activeTab === 'debug' }" @click="activeTab = 'debug'">Debug</button>
           </div>
 
           <!-- tab content -->
@@ -614,14 +671,18 @@
               <!-- Starting Resources -->
               <section class="space-y-3">
                 <h3 class="section-heading">Resources</h3>
-                <div class="bg-neutral-800/30 rounded-sm p-4 space-y-4">
+                <div class="bg-neutral-800/30 rounded-sm p-4 space-y-4" :class="{ 'opacity-60': items.archipelagoMode.value }">
+                  <!-- Lock notice for Archipelago mode -->
+                  <div v-if="items.archipelagoMode.value" class="text-xs text-amber-300/70 mb-2">
+                    🔒 Resource settings are locked in Archipelago mode
+                  </div>
                   <!-- Unlimited toggles -->
-                  <label class="flex items-center gap-3 cursor-pointer group">
-                    <input type="checkbox" v-model="items.unlimitedLives.value" class="checkbox-field" />
+                  <label class="flex items-center gap-3 group" :class="items.archipelagoMode.value ? 'cursor-not-allowed' : 'cursor-pointer'">
+                    <input type="checkbox" v-model="items.unlimitedLives.value" class="checkbox-field" :disabled="items.archipelagoMode.value" />
                     <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Unlimited Lives</span>
                   </label>
-                  <label class="flex items-center gap-3 cursor-pointer group">
-                    <input type="checkbox" v-model="items.unlimitedCoins.value" class="checkbox-field" />
+                  <label class="flex items-center gap-3 group" :class="items.archipelagoMode.value ? 'cursor-not-allowed' : 'cursor-pointer'">
+                    <input type="checkbox" v-model="items.unlimitedCoins.value" class="checkbox-field" :disabled="items.archipelagoMode.value" />
                     <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Unlimited Coins</span>
                   </label>
 
@@ -635,6 +696,7 @@
                         max="10"
                         class="input-field w-20 text-center text-sm"
                         v-model.number="items.baseLives.value"
+                        :disabled="items.archipelagoMode.value"
                       />
                     </div>
                   </div>
@@ -647,6 +709,19 @@
                       max="100"
                       class="input-field w-20 text-center text-sm"
                       v-model.number="items.startingCoins.value"
+                      :disabled="items.archipelagoMode.value"
+                    />
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <label for="starting-hints" class="text-sm text-neutral-300">Starting Hints Revealed</label>
+                    <input
+                      id="starting-hints"
+                      type="number"
+                      min="0"
+                      max="20"
+                      class="input-field w-20 text-center text-sm"
+                      v-model.number="items.startingHintReveals.value"
+                      :disabled="items.archipelagoMode.value"
                     />
                   </div>
                   <div class="flex items-center justify-between">
@@ -658,6 +733,7 @@
                       max="10"
                       class="input-field w-20 text-center text-sm"
                       v-model.number="coinsPerLine"
+                      :disabled="items.archipelagoMode.value"
                     />
                   </div>
                   <div class="flex items-center justify-between">
@@ -669,6 +745,7 @@
                       max="50"
                       class="input-field w-20 text-center text-sm"
                       v-model.number="items.coinsPerBundle.value"
+                      :disabled="items.archipelagoMode.value"
                     />
                   </div>
                   <div v-if="items.extraLives.value > 0" class="text-xs text-lime-400">
@@ -678,16 +755,6 @@
               </section>
 
               <div class="space-y-6">
-                <section class="space-y-4">
-                  <h3 class="section-heading">Debug</h3>
-                  <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
-                    <label class="flex items-center gap-3 cursor-pointer group">
-                      <input type="checkbox" v-model="showDebugGrid" class="checkbox-field" />
-                      <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Show solution grid (debug)</span>
-                    </label>
-                    <button type="button" class="btn-secondary w-full" @click="autoSolve()">Auto-Solve Puzzle</button>
-                  </div>
-                </section>
                 <!-- Game Display -->
                 <section class="space-y-4">
                   <h3 class="section-heading">Behaviour</h3>
@@ -883,7 +950,7 @@
             </div>
 
             <!-- SHOP / ITEMS -->
-            <div v-else class="space-y-6">
+            <div v-else-if="activeTab === 'shop'" class="space-y-6">
               <div class="flex items-center gap-3">
                 <div>
                   <h2 class="font-semibold text-neutral-100">Shop & Items</h2>
@@ -938,6 +1005,7 @@
               <section class="space-y-3">
                 <h3 class="section-heading">Shop</h3>
                 <div class="bg-neutral-800/30 rounded-sm p-4 space-y-3">
+                  <!-- Random Cell Solve -->
                   <button
                     class="w-full px-4 py-3 rounded text-sm font-medium transition-colors flex items-center justify-between"
                     :class="
@@ -950,6 +1018,44 @@
                   >
                     <span>🎯 Buy & Use Random Cell Solve</span>
                     <span class="text-xs">🪙 {{ items.RANDOM_CELL_SOLVE_COST }}</span>
+                  </button>
+
+                  <!-- Temporary Hint Reveal (only in AP mode) -->
+                  <button
+                    v-if="items.archipelagoMode.value"
+                    class="w-full px-4 py-3 rounded text-sm font-medium transition-colors flex items-center justify-between"
+                    :class="
+                      items.coins.value >= items.TEMP_HINT_COST.value
+                        ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
+                        : 'bg-neutral-700/30 text-neutral-500 cursor-not-allowed'
+                    "
+                    :disabled="items.coins.value < items.TEMP_HINT_COST.value"
+                    @click="buyTempHint()"
+                  >
+                    <div class="text-left">
+                      <span>👁️ Temporary Hint Reveal</span>
+                      <div class="text-[10px] opacity-70">Reveals 1 hint (this puzzle only)</div>
+                    </div>
+                    <span class="text-xs">🪙 {{ items.TEMP_HINT_COST.value }}</span>
+                  </button>
+
+                  <!-- Increase Difficulty (only in AP mode) -->
+                  <button
+                    v-if="items.archipelagoMode.value"
+                    class="w-full px-4 py-3 rounded text-sm font-medium transition-colors flex items-center justify-between"
+                    :class="
+                      items.coins.value >= items.DIFFICULTY_INCREASE_COST.value
+                        ? 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30'
+                        : 'bg-neutral-700/30 text-neutral-500 cursor-not-allowed'
+                    "
+                    :disabled="items.coins.value < items.DIFFICULTY_INCREASE_COST.value"
+                    @click="buyDifficultyIncrease()"
+                  >
+                    <div class="text-left">
+                      <span>📈 Increase Difficulty</span>
+                      <div class="text-[10px] opacity-70">{{ items.currentDifficulty.value }}x{{ items.currentDifficulty.value }} → {{ items.currentDifficulty.value + items.DIFFICULTY_STEP }}x{{ items.currentDifficulty.value + items.DIFFICULTY_STEP }}</div>
+                    </div>
+                    <span class="text-xs">🪙 {{ items.DIFFICULTY_INCREASE_COST.value }}</span>
                   </button>
                 </div>
               </section>
@@ -999,10 +1105,39 @@
                   </div>
                 </div>
               </section>
+            </div>
 
-              <!-- Debug: Test Item Reception -->
-              <section v-if="showDebugGrid" class="space-y-3">
-                <h3 class="section-heading">Debug: Simulate Items</h3>
+            <!-- DEBUG -->
+            <div v-else class="space-y-6">
+              <div class="flex items-center gap-3">
+                <div>
+                  <h2 class="font-semibold text-neutral-100">Debug Tools</h2>
+                  <p class="text-xs text-neutral-400">Development and testing options</p>
+                </div>
+              </div>
+
+              <!-- Debug Display -->
+              <section class="space-y-3">
+                <h3 class="section-heading">Display Options</h3>
+                <div class="bg-neutral-800/30 rounded-sm p-4 space-y-4">
+                  <label class="flex items-center gap-3 cursor-pointer group">
+                    <input type="checkbox" v-model="showDebugGrid" class="checkbox-field" />
+                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Show solution grid (debug)</span>
+                  </label>
+                </div>
+              </section>
+
+              <!-- Debug Actions -->
+              <section class="space-y-3">
+                <h3 class="section-heading">Actions</h3>
+                <div class="bg-neutral-800/30 rounded-sm p-4 space-y-3">
+                  <button type="button" class="btn-secondary w-full" @click="autoSolve()">Auto-Solve Puzzle</button>
+                </div>
+              </section>
+
+              <!-- Simulate Items -->
+              <section class="space-y-3">
+                <h3 class="section-heading">Simulate Items</h3>
                 <div class="bg-neutral-800/30 rounded-sm p-4 space-y-2">
                   <p class="text-xs text-neutral-400 mb-3">Click to simulate receiving an item from Archipelago:</p>
                   <div class="flex flex-wrap gap-2">
