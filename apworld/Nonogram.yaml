@@ -1,0 +1,46 @@
+# Example YAML for Nonogram Archipelago
+# Copy this to Archipelago/Players/Nonogram.yaml
+
+name: NonogramPlayer  # Your slot name - use this when connecting
+game: Nonogram
+
+Nonogram:
+  # === Starting Resources ===
+
+  # Number of lives per puzzle (1-10, default: 3)
+  starting_lives: 3
+
+  # Starting coins for the shop (0-50, default: 5)
+  starting_coins: 5
+
+  # Row/column hints revealed at puzzle start (0-5, default: 1)
+  starting_hints: 1
+
+  # Coins received from Coin Bundle items (1-20, default: 5)
+  coins_per_bundle: 5
+
+  # === Item Pool Counts ===
+
+  # Extra Life items in the pool (0-10, default: 5)
+  extra_lives_in_pool: 5
+
+  # Hint Reveal items in the pool (0-20, default: 10)
+  hint_reveals_in_pool: 10
+
+  # Coin Bundle items in the pool (0-30, default: 15)
+  coin_bundles_in_pool: 15
+
+  # Random Cell Solve items in the pool (0-10, default: 3)
+  cell_solves_in_pool: 3
+
+  # === Goal ===
+
+  # Puzzles required to complete goal (1-100, default: 64)
+  # This determines which milestone triggers victory
+  goal_puzzles: 16
+
+  # === Optional Features ===
+
+  # Enable Death Link (true/false, default: false)
+  # When enabled: losing all lives sends death, receiving death loses a life
+  death_link: false

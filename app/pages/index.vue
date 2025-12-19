@@ -21,8 +21,28 @@
     cycleCell,
   } = useNonogram();
 
-  const { host, port, slot, password, status, lastMessage, messageLog, connect, disconnect, checkPuzzleSolved, debugReceiveItem, items } =
-    useArchipelago();
+  const {
+    host,
+    port,
+    slot,
+    password,
+    status,
+    lastMessage,
+    messageLog,
+    slotData,
+    deathLinkEnabled,
+    goalCompleted,
+    connect,
+    disconnect,
+    checkLocation,
+    checkLocations,
+    checkPuzzleSolved,
+    checkGoalCompletion,
+    toggleDeathLink,
+    sendDeathLink,
+    debugReceiveItem,
+    items,
+  } = useArchipelago();
 
   // Loading state
   const isLoading = ref(true);
@@ -68,6 +88,10 @@
     for (let r = 0; r < rows.value; r++) {
       if (completedRows.value.has(r)) continue;
 
+      // Check if row has any cells to fill (skip rows with all 0s)
+      const rowHasFills = solution.value[r]?.some((cell) => cell === 1);
+      if (!rowHasFills) continue;
+
       let rowComplete = true;
       for (let c = 0; c < cols.value; c++) {
         const shouldBeFilled = solution.value[r]?.[c] === 1;
@@ -81,10 +105,13 @@
       if (rowComplete) {
         completedRows.value.add(r);
         items.addCoins(coinsPerLine.value);
-        // Check for first line completion
+        // Check for first line completion and send to AP
         if (!hasCompletedFirstLine.value) {
           hasCompletedFirstLine.value = true;
-          items.markFirstLineCompleted();
+          const locationId = items.markFirstLineCompleted();
+          if (locationId !== null) {
+            checkLocation(locationId);
+          }
         }
       }
     }
@@ -92,6 +119,16 @@
     // Check columns
     for (let c = 0; c < cols.value; c++) {
       if (completedCols.value.has(c)) continue;
+
+      // Check if column has any cells to fill (skip columns with all 0s)
+      let colHasFills = false;
+      for (let r = 0; r < rows.value; r++) {
+        if (solution.value[r]?.[c] === 1) {
+          colHasFills = true;
+          break;
+        }
+      }
+      if (!colHasFills) continue;
 
       let colComplete = true;
       for (let r = 0; r < rows.value; r++) {
@@ -106,10 +143,13 @@
       if (colComplete) {
         completedCols.value.add(c);
         items.addCoins(coinsPerLine.value);
-        // Check for first line completion
+        // Check for first line completion and send to AP
         if (!hasCompletedFirstLine.value) {
           hasCompletedFirstLine.value = true;
-          items.markFirstLineCompleted();
+          const locationId = items.markFirstLineCompleted();
+          if (locationId !== null) {
+            checkLocation(locationId);
+          }
         }
       }
     }
@@ -238,12 +278,30 @@
     window.setTimeout(() => (checkPulse.value = false), 2000);
   }
 
-  watchEffect(() => {
-    if (solved.value) {
-      checkPuzzleSolved();
-      items.markPuzzleCompleted();
+  // Track puzzle completion - only fire once when solved transitions from false to true
+  watch(solved, (isSolved, wasSolved) => {
+    if (isSolved && !wasSolved) {
+      // Mark puzzle completed and get any new location checks
+      const newLocationChecks = items.markPuzzleCompleted();
+      // Send all new checks to AP
+      if (newLocationChecks.length > 0) {
+        checkLocations(newLocationChecks);
+      }
+      checkPuzzleSolved(); // Legacy logging
+      // Check if we've reached the goal
+      checkGoalCompletion();
     }
   });
+
+  // Watch for game over (lost all lives) to send Death Link
+  watch(
+    () => items.currentLives.value,
+    (newLives, oldLives) => {
+      if (newLives === 0 && oldLives > 0 && deathLinkEnabled.value) {
+        sendDeathLink('Lost all lives on a puzzle');
+      }
+    },
+  );
 
   function clampInt(v: any, min: number, max: number) {
     const n = Number.parseInt(String(v ?? ''), 10);

@@ -50,6 +50,40 @@ npm run dev
 
 The app will be available at `http://localhost:3000`
 
+## Archipelago Setup
+
+For detailed local testing instructions, see [LOCAL_TESTING.md](LOCAL_TESTING.md).
+
+### Installing the APWorld
+
+1. Navigate to the `apworld` folder in this repository
+2. Run the build script:
+   ```bash
+   cd apworld
+   python build_apworld.py
+   ```
+3. Copy the generated `nonogram.apworld` to your Archipelago `custom_worlds` folder
+   - Or copy the `apworld/nonogram` folder to `Archipelago/worlds/`
+
+### Generating a Game
+
+1. Create a YAML file for your game (see `apworld/Nonogram.yaml` for an example)
+2. Place it in Archipelago's `Players` folder
+3. Generate the game using the Archipelago launcher or:
+   ```bash
+   python Generate.py
+   ```
+
+### Game Options
+
+| Option | Range | Default | Description |
+|--------|-------|---------|-------------|
+| `starting_lives` | 1-10 | 3 | Lives per puzzle |
+| `starting_coins` | 0-50 | 5 | Starting coins |
+| `starting_hints` | 0-5 | 1 | Hints revealed per puzzle |
+| `goal_puzzles` | 1-100 | 64 | Puzzles required to win |
+| `death_link` | on/off | off | Share deaths with other players |
+
 ## Usage
 
 ### Free Play Mode
@@ -63,12 +97,27 @@ By default, the game runs in Free Play mode with all features unlocked. You can 
    - **Player Name**: Your slot name from the multiworld
    - **Password**: Room password (if required)
 3. Click **Connect**
-4. Go to **Settings** tab and click **Enable** under Archipelago Mode
 
 In Archipelago Mode:
 - Features are locked until you receive them from other players
 - Complete puzzles to send checks to the multiworld
-- Resource settings are locked to the configured values
+- Resource settings come from your YAML configuration
+- Receive items from other players in your multiworld
+
+### Items You Can Receive
+- **Place X** - Mark cells as empty
+- **Auto-X** - Automatically mark completed lines
+- **Grey Completed Hints** - Grey out finished hints
+- **Drag Painting** - Click and drag to paint
+- **Check Mistakes** - Highlight errors
+- **Hint Reveal** - See more row/column hints
+- **Extra Life** - Increase max lives
+- **Coin Bundle** - Get coins for the shop
+- **Random Cell Solve** - Auto-solve one cell
+
+### Location Checks
+- Complete your first row/column
+- Complete 1, 2, 4, 8, 16, 32, or 64 puzzles
 
 ### Controls
 - **Left Click**: Fill a cell
@@ -81,7 +130,23 @@ In Archipelago Mode:
 - [Nuxt 4](https://nuxt.com/) - Vue.js framework
 - [Vue 3](https://vuejs.org/) - Frontend framework
 - [Tailwind CSS 4](https://tailwindcss.com/) - Styling
-- [archipelago.js](https://github.com/ArchipelagoMW/archipelago.js) - Archipelago client library
+- [archipelago.js](https://github.com/ThePhar/archipelago.js) - Archipelago client library
+
+### Project Structure
+```
+nonogram-archipelago/
+├── app/                    # Nuxt application
+│   ├── components/         # Vue components
+│   ├── composables/        # Vue composables (game logic, AP integration)
+│   ├── pages/              # Page components
+│   └── plugins/            # Nuxt plugins (AP client setup)
+├── apworld/                # Archipelago world files
+│   ├── nonogram/           # Python world implementation
+│   ├── build_apworld.py    # APWorld packaging script
+│   └── Nonogram.yaml       # Example player YAML
+├── LOCAL_TESTING.md        # Local testing guide
+└── README.md               # This file
+```
 
 ### Scripts
 
@@ -94,6 +159,9 @@ npm run build
 
 # Preview production build
 npm run preview
+
+# Build APWorld
+cd apworld && python build_apworld.py
 ```
 
 ## License
