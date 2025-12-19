@@ -21,8 +21,22 @@
     cycleCell,
   } = useNonogram();
 
-  const { host, port, slot, password, status, lastMessage, messageLog, connect, disconnect, checkPuzzleSolved, debugReceiveItem, items } =
-    useArchipelago();
+  const {
+    host,
+    port,
+    slot,
+    password,
+    status,
+    lastMessage,
+    messageLog,
+    connect,
+    disconnect,
+    checkLocation,
+    checkLocations,
+    checkPuzzleSolved,
+    debugReceiveItem,
+    items,
+  } = useArchipelago();
 
   // Loading state
   const isLoading = ref(true);
@@ -81,10 +95,13 @@
       if (rowComplete) {
         completedRows.value.add(r);
         items.addCoins(coinsPerLine.value);
-        // Check for first line completion
+        // Check for first line completion and send to AP
         if (!hasCompletedFirstLine.value) {
           hasCompletedFirstLine.value = true;
-          items.markFirstLineCompleted();
+          const locationId = items.markFirstLineCompleted();
+          if (locationId !== null) {
+            checkLocation(locationId);
+          }
         }
       }
     }
@@ -106,10 +123,13 @@
       if (colComplete) {
         completedCols.value.add(c);
         items.addCoins(coinsPerLine.value);
-        // Check for first line completion
+        // Check for first line completion and send to AP
         if (!hasCompletedFirstLine.value) {
           hasCompletedFirstLine.value = true;
-          items.markFirstLineCompleted();
+          const locationId = items.markFirstLineCompleted();
+          if (locationId !== null) {
+            checkLocation(locationId);
+          }
         }
       }
     }
@@ -240,8 +260,13 @@
 
   watchEffect(() => {
     if (solved.value) {
-      checkPuzzleSolved();
-      items.markPuzzleCompleted();
+      // Mark puzzle completed and get any new location checks
+      const newLocationChecks = items.markPuzzleCompleted();
+      // Send all new checks to AP
+      if (newLocationChecks.length > 0) {
+        checkLocations(newLocationChecks);
+      }
+      checkPuzzleSolved(); // Legacy logging
     }
   });
 

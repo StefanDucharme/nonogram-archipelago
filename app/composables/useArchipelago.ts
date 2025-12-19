@@ -1,13 +1,17 @@
-import type { Client } from 'archipelago.js';
+import type { Client, Item } from 'archipelago.js';
+import { itemsHandlingFlags } from 'archipelago.js';
 import { useArchipelagoItems, AP_LOCATIONS } from './useArchipelagoItems';
 
 type Status = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+// Track if event handlers have been set up (to avoid duplicates)
+let eventHandlersInitialized = false;
 
 export function useArchipelago() {
   const nuxt = useNuxtApp();
   const client = nuxt.$apClient as Client;
 
-  const host = useState('ap_host', () => 'localhost');
+  const host = useState('ap_host', () => 'archipelago.gg');
   const port = useState('ap_port', () => 38281);
   const slot = useState('ap_slot', () => '');
   const password = useState('ap_password', () => '');
@@ -29,6 +33,35 @@ export function useArchipelago() {
     }
   }
 
+  // Set up event handlers once
+  function setupEventHandlers() {
+    if (eventHandlersInitialized) return;
+    eventHandlersInitialized = true;
+
+    // Handle received items
+    client.items.on('itemsReceived', (receivedItems: Item[], startingIndex: number) => {
+      for (const item of receivedItems) {
+        // item.id is the item ID from the AP world
+        const itemName = handleItemReceived(item.id);
+        if (itemName) {
+          addLogMessage(`Received: ${itemName} from ${item.sender.name}`, 'item');
+        }
+      }
+    });
+
+    // Handle chat messages
+    client.messages.on('message', (content: string) => {
+      addLogMessage(content, 'chat');
+    });
+
+    // Handle disconnection
+    client.socket.on('disconnected', () => {
+      status.value = 'disconnected';
+      lastMessage.value = 'Disconnected from server.';
+      addLogMessage('Connection lost.', 'error');
+    });
+  }
+
   async function connect() {
     try {
       status.value = 'connecting';
@@ -38,44 +71,36 @@ export function useArchipelago() {
       items.enableArchipelagoMode();
       addLogMessage('Connecting to Archipelago...', 'info');
 
-      // archipelago.js: connect + login style API (see docs)
-      await client.connect({
-        hostname: host.value,
-        port: port.value,
-        name: slot.value,
-        password: password.value || undefined,
-        game: 'Nonogram',
-      } as any);
+      // Set up event handlers before connecting
+      setupEventHandlers();
 
-      // Set up item received handler
-      // Note: The exact API depends on archipelago.js version
-      // This is the general pattern - adjust based on library docs
-      if (client.items && typeof client.items.on === 'function') {
-        client.items.on('itemsReceived', (receivedItems: any[]) => {
-          for (const item of receivedItems) {
-            const itemName = handleItemReceived(item.item);
-            if (itemName) {
-              addLogMessage(`Received: ${itemName}`, 'item');
-            }
-          }
-        });
-      }
+      // Build the connection URL
+      // archipelago.js v2 uses: client.login(url, name, game, options)
+      const url = `wss://${host.value}:${port.value}`;
+
+      await client.login(url, slot.value, 'Nonogram', {
+        password: password.value || '',
+        // Request all items (own, starting, others)
+        items: itemsHandlingFlags.all,
+        slotData: true,
+      });
 
       status.value = 'connected';
-      lastMessage.value = 'Connected.';
-      addLogMessage('Connected to Archipelago server!', 'info');
+      lastMessage.value = 'Connected!';
+      addLogMessage(`Connected to Archipelago server as ${slot.value}!`, 'info');
     } catch (e: any) {
       status.value = 'error';
-      lastMessage.value = e?.message ?? String(e);
-      addLogMessage(`Connection error: ${e?.message ?? String(e)}`, 'error');
+      const errorMsg = e?.message ?? String(e);
+      lastMessage.value = errorMsg;
+      addLogMessage(`Connection error: ${errorMsg}`, 'error');
       // Disable Archipelago mode on connection failure
       items.disableArchipelagoMode();
     }
   }
 
-  async function disconnect() {
+  function disconnect() {
     try {
-      client.disconnect();
+      client.socket.disconnect();
       addLogMessage('Disconnected from server.', 'info');
     } finally {
       status.value = 'disconnected';
@@ -93,16 +118,37 @@ export function useArchipelago() {
     return itemName;
   }
 
-  function checkPuzzleSolved() {
+  // Send a location check to the server
+  function checkLocation(locationId: number) {
     if (status.value !== 'connected') return;
     try {
-      client.locations.check([AP_LOCATIONS.SOLVE_PUZZLE] as any);
-      lastMessage.value = `Reported solve (location ${AP_LOCATIONS.SOLVE_PUZZLE}).`;
-      addLogMessage('Puzzle solved! Check sent to server.', 'info');
+      client.check(locationId);
+      addLogMessage(`Location ${locationId} checked.`, 'info');
     } catch (e: any) {
-      lastMessage.value = e?.message ?? String(e);
-      addLogMessage(`Error reporting solve: ${e?.message ?? String(e)}`, 'error');
+      const errorMsg = e?.message ?? String(e);
+      lastMessage.value = errorMsg;
+      addLogMessage(`Error checking location: ${errorMsg}`, 'error');
     }
+  }
+
+  // Check multiple locations at once
+  function checkLocations(locationIds: number[]) {
+    if (status.value !== 'connected') return;
+    try {
+      client.check(...locationIds);
+      addLogMessage(`Checked ${locationIds.length} location(s).`, 'info');
+    } catch (e: any) {
+      const errorMsg = e?.message ?? String(e);
+      lastMessage.value = errorMsg;
+      addLogMessage(`Error checking locations: ${errorMsg}`, 'error');
+    }
+  }
+
+  // Legacy function name for compatibility
+  function checkPuzzleSolved() {
+    // This should be called when a puzzle is completed
+    // The actual location to check depends on how many puzzles have been completed
+    addLogMessage('Puzzle completed! Checking for milestone locations...', 'info');
   }
 
   // Debug function to simulate receiving an item (for testing)
@@ -110,6 +156,16 @@ export function useArchipelago() {
     const itemName = handleItemReceived(itemId);
     if (itemName) {
       addLogMessage(`[DEBUG] Received: ${itemName}`, 'item');
+    }
+  }
+
+  // Send a chat message
+  async function say(message: string) {
+    if (status.value !== 'connected') return;
+    try {
+      await client.messages.say(message);
+    } catch (e: any) {
+      addLogMessage(`Error sending message: ${e?.message ?? String(e)}`, 'error');
     }
   }
 
@@ -123,8 +179,11 @@ export function useArchipelago() {
     messageLog,
     connect,
     disconnect,
+    checkLocation,
+    checkLocations,
     checkPuzzleSolved,
     debugReceiveItem,
+    say,
     // Expose items composable
     items,
   };
