@@ -88,6 +88,10 @@
     for (let r = 0; r < rows.value; r++) {
       if (completedRows.value.has(r)) continue;
 
+      // Check if row has any cells to fill (skip rows with all 0s)
+      const rowHasFills = solution.value[r]?.some((cell) => cell === 1);
+      if (!rowHasFills) continue;
+
       let rowComplete = true;
       for (let c = 0; c < cols.value; c++) {
         const shouldBeFilled = solution.value[r]?.[c] === 1;
@@ -115,6 +119,16 @@
     // Check columns
     for (let c = 0; c < cols.value; c++) {
       if (completedCols.value.has(c)) continue;
+
+      // Check if column has any cells to fill (skip columns with all 0s)
+      let colHasFills = false;
+      for (let r = 0; r < rows.value; r++) {
+        if (solution.value[r]?.[c] === 1) {
+          colHasFills = true;
+          break;
+        }
+      }
+      if (!colHasFills) continue;
 
       let colComplete = true;
       for (let r = 0; r < rows.value; r++) {
@@ -264,8 +278,9 @@
     window.setTimeout(() => (checkPulse.value = false), 2000);
   }
 
-  watchEffect(() => {
-    if (solved.value) {
+  // Track puzzle completion - only fire once when solved transitions from false to true
+  watch(solved, (isSolved, wasSolved) => {
+    if (isSolved && !wasSolved) {
       // Mark puzzle completed and get any new location checks
       const newLocationChecks = items.markPuzzleCompleted();
       // Send all new checks to AP

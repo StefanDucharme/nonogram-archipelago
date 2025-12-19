@@ -13,7 +13,7 @@ export function useArchipelago() {
 
   const host = useState('ap_host', () => 'archipelago.gg');
   const port = useState('ap_port', () => 38281);
-  const slot = useState('ap_slot', () => '');
+  const slot = useState('ap_slot', () => 'NonogramPlayer');
   const password = useState('ap_password', () => '');
 
   const status = useState<Status>('ap_status', () => 'disconnected');
