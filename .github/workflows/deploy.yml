@@ -28,11 +28,17 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Build
-        run: npm run build
+      - name: Generate (static)
+        run: npx nuxt generate --preset github_pages
         env:
-          # baseURL for Project Pages must be /<repo>/
           NUXT_APP_BASE_URL: /nonogram-archipelago/
+
+      - name: Debug output
+        run: |
+          echo "Listing .output/public:"
+          ls -la .output/public
+          echo "Find index.html:"
+          find .output/public -maxdepth 2 -name "index.html" -print
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
