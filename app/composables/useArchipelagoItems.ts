@@ -49,33 +49,34 @@ export const AP_ITEMS = {
 export const AP_LOCATIONS = {
   // Milestone checks
   FIRST_LINE_COMPLETED: 9000001,
-  // Consecutive puzzles completed (1, 2, 4, 8, 16, 32, 64)
-  PUZZLES_COMPLETED_1: 9000010,
-  PUZZLES_COMPLETED_2: 9000011,
-  PUZZLES_COMPLETED_4: 9000012,
-  PUZZLES_COMPLETED_8: 9000013,
-  PUZZLES_COMPLETED_16: 9000014,
-  PUZZLES_COMPLETED_32: 9000015,
-  PUZZLES_COMPLETED_64: 9000016,
+  // Base ID for puzzle completion (add puzzle number to get location ID)
+  // e.g., Puzzle 1 = 9001001, Puzzle 2 = 9001002, etc.
+  PUZZLE_COMPLETE_BASE: 9001000,
 } as const;
+
+// Helper to get location ID for a specific puzzle number
+export function getPuzzleLocationId(puzzleNumber: number): number {
+  return AP_LOCATIONS.PUZZLE_COMPLETE_BASE + puzzleNumber;
+}
 
 // Location registry for UI display
 export interface LocationDefinition {
   id: number;
   name: string;
   description: string;
-  threshold?: number; // For consecutive puzzle checks
+  threshold?: number; // For puzzle checks
 }
 
+// Generate location registry dynamically
 export const LOCATION_REGISTRY: LocationDefinition[] = [
   { id: AP_LOCATIONS.FIRST_LINE_COMPLETED, name: 'First Line', description: 'Complete your first row or column' },
-  { id: AP_LOCATIONS.PUZZLES_COMPLETED_1, name: '1 Puzzle', description: 'Complete 1 puzzle', threshold: 1 },
-  { id: AP_LOCATIONS.PUZZLES_COMPLETED_2, name: '2 Puzzles', description: 'Complete 2 puzzles', threshold: 2 },
-  { id: AP_LOCATIONS.PUZZLES_COMPLETED_4, name: '4 Puzzles', description: 'Complete 4 puzzles', threshold: 4 },
-  { id: AP_LOCATIONS.PUZZLES_COMPLETED_8, name: '8 Puzzles', description: 'Complete 8 puzzles', threshold: 8 },
-  { id: AP_LOCATIONS.PUZZLES_COMPLETED_16, name: '16 Puzzles', description: 'Complete 16 puzzles', threshold: 16 },
-  { id: AP_LOCATIONS.PUZZLES_COMPLETED_32, name: '32 Puzzles', description: 'Complete 32 puzzles', threshold: 32 },
-  { id: AP_LOCATIONS.PUZZLES_COMPLETED_64, name: '64 Puzzles', description: 'Complete 64 puzzles', threshold: 64 },
+  // Add entries for puzzles 1-64
+  ...Array.from({ length: 64 }, (_, i) => ({
+    id: getPuzzleLocationId(i + 1),
+    name: `Puzzle ${i + 1}`,
+    description: `Complete puzzle ${i + 1}`,
+    threshold: i + 1,
+  })),
 ];
 
 // ============================================
@@ -486,22 +487,11 @@ export function useArchipelagoItems() {
     puzzlesCompleted.value += 1;
     const newChecks: number[] = [];
 
-    // Consecutive puzzle checks
-    const thresholds = [
-      { count: 1, location: AP_LOCATIONS.PUZZLES_COMPLETED_1 },
-      { count: 2, location: AP_LOCATIONS.PUZZLES_COMPLETED_2 },
-      { count: 4, location: AP_LOCATIONS.PUZZLES_COMPLETED_4 },
-      { count: 8, location: AP_LOCATIONS.PUZZLES_COMPLETED_8 },
-      { count: 16, location: AP_LOCATIONS.PUZZLES_COMPLETED_16 },
-      { count: 32, location: AP_LOCATIONS.PUZZLES_COMPLETED_32 },
-      { count: 64, location: AP_LOCATIONS.PUZZLES_COMPLETED_64 },
-    ];
-
-    for (const { count, location } of thresholds) {
-      if (puzzlesCompleted.value >= count && !completedChecks.value.has(location)) {
-        completedChecks.value.add(location);
-        newChecks.push(location);
-      }
+    // Each puzzle completion is its own check (Puzzle 1, Puzzle 2, etc.)
+    const locationId = getPuzzleLocationId(puzzlesCompleted.value);
+    if (!completedChecks.value.has(locationId)) {
+      completedChecks.value.add(locationId);
+      newChecks.push(locationId);
     }
 
     return newChecks;

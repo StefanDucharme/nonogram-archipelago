@@ -1,5 +1,5 @@
 import type { Client, Item } from 'archipelago.js';
-import { itemsHandlingFlags } from 'archipelago.js';
+import { clientStatuses, itemsHandlingFlags } from 'archipelago.js';
 import { useArchipelagoItems, AP_LOCATIONS } from './useArchipelagoItems';
 
 type Status = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -18,6 +18,16 @@ export function useArchipelago() {
 
   const status = useState<Status>('ap_status', () => 'disconnected');
   const lastMessage = useState<string>('ap_lastMessage', () => '');
+
+  // Death Link state
+  const deathLinkEnabled = useState('ap_deathLink', () => false);
+  const lastDeathTime = useState('ap_lastDeathTime', () => 0);
+
+  // Goal state
+  const goalCompleted = useState('ap_goalCompleted', () => false);
+
+  // Slot data from server
+  const slotData = useState<Record<string, any>>('ap_slotData', () => ({}));
 
   // Chat/event log
   const messageLog = useState<Array<{ time: Date; text: string; type: 'info' | 'item' | 'chat' | 'error' }>>('ap_messageLog', () => []);
@@ -60,12 +70,54 @@ export function useArchipelago() {
       lastMessage.value = 'Disconnected from server.';
       addLogMessage('Connection lost.', 'error');
     });
+
+    // Handle bounced packets (for Death Link)
+    client.socket.on('bounced', (packet: any, data: any) => {
+      if (data?.time && data?.cause && data?.source) {
+        // This is a Death Link
+        handleDeathLinkReceived(data.source, data.cause);
+      }
+    });
+  }
+
+  // Handle receiving a Death Link
+  function handleDeathLinkReceived(source: string, cause: string) {
+    if (!deathLinkEnabled.value) return;
+
+    // Prevent death loops - ignore if we just died
+    const now = Date.now();
+    if (now - lastDeathTime.value < 3000) return;
+
+    addLogMessage(`☠️ Death Link from ${source}: ${cause}`, 'error');
+    items.loseLife();
+  }
+
+  // Send a Death Link to other players
+  function sendDeathLink(cause: string = 'Lost all lives') {
+    if (status.value !== 'connected' || !deathLinkEnabled.value) return;
+
+    lastDeathTime.value = Date.now();
+
+    try {
+      client.bounce(
+        { tags: ['DeathLink'] },
+        {
+          time: Date.now() / 1000,
+          cause: cause,
+          source: slot.value,
+        },
+      );
+      addLogMessage(`☠️ Sent Death Link: ${cause}`, 'error');
+    } catch (e: any) {
+      console.error('Failed to send Death Link:', e);
+    }
   }
 
   async function connect() {
     try {
       status.value = 'connecting';
       lastMessage.value = '';
+      goalCompleted.value = false;
 
       // Enable Archipelago mode when connecting
       items.enableArchipelagoMode();
@@ -78,16 +130,46 @@ export function useArchipelago() {
       // archipelago.js v2 uses: client.login(url, name, game, options)
       const url = `wss://${host.value}:${port.value}`;
 
-      await client.login(url, slot.value, 'Nonogram', {
+      // Build tags array
+      const tags: string[] = [];
+      if (deathLinkEnabled.value) {
+        tags.push('DeathLink');
+      }
+
+      const receivedSlotData = await client.login(url, slot.value, 'Nonogram', {
         password: password.value || '',
         // Request all items (own, starting, others)
         items: itemsHandlingFlags.all,
         slotData: true,
+        tags,
       });
+
+      // Store slot data for use by items composable
+      slotData.value = receivedSlotData as Record<string, any>;
+
+      // Apply slot data settings
+      if (slotData.value) {
+        if (typeof slotData.value.starting_lives === 'number') {
+          items.baseLives.value = slotData.value.starting_lives;
+        }
+        if (typeof slotData.value.starting_coins === 'number') {
+          items.startingCoins.value = slotData.value.starting_coins;
+          items.coins.value = slotData.value.starting_coins;
+        }
+        if (typeof slotData.value.starting_hints === 'number') {
+          items.startingHintReveals.value = slotData.value.starting_hints;
+        }
+        if (typeof slotData.value.coins_per_bundle === 'number') {
+          items.coinsPerBundle.value = slotData.value.coins_per_bundle;
+        }
+      }
 
       status.value = 'connected';
       lastMessage.value = 'Connected!';
       addLogMessage(`Connected to Archipelago server as ${slot.value}!`, 'info');
+
+      // Update status to playing
+      client.updateStatus(clientStatuses.playing);
     } catch (e: any) {
       status.value = 'error';
       const errorMsg = e?.message ?? String(e);
@@ -151,6 +233,37 @@ export function useArchipelago() {
     addLogMessage('Puzzle completed! Checking for milestone locations...', 'info');
   }
 
+  // Mark the goal as completed
+  function completeGoal() {
+    if (status.value !== 'connected' || goalCompleted.value) return;
+
+    goalCompleted.value = true;
+    client.updateStatus(clientStatuses.goal);
+    addLogMessage('🏆 Goal completed! Congratulations!', 'info');
+  }
+
+  // Check if goal should be completed based on puzzles completed
+  function checkGoalCompletion() {
+    if (goalCompleted.value) return;
+
+    const goalPuzzles = slotData.value?.goal_puzzles ?? 64;
+    if (items.puzzlesCompleted.value >= goalPuzzles) {
+      completeGoal();
+    }
+  }
+
+  // Toggle Death Link
+  function toggleDeathLink(enabled: boolean) {
+    deathLinkEnabled.value = enabled;
+
+    // Update tags if connected
+    if (status.value === 'connected') {
+      const tags = enabled ? ['DeathLink'] : [];
+      client.updateTags(tags);
+      addLogMessage(`Death Link ${enabled ? 'enabled' : 'disabled'}`, 'info');
+    }
+  }
+
   // Debug function to simulate receiving an item (for testing)
   function debugReceiveItem(itemId: number) {
     const itemName = handleItemReceived(itemId);
@@ -177,11 +290,18 @@ export function useArchipelago() {
     status,
     lastMessage,
     messageLog,
+    slotData,
+    deathLinkEnabled,
+    goalCompleted,
     connect,
     disconnect,
     checkLocation,
     checkLocations,
     checkPuzzleSolved,
+    checkGoalCompletion,
+    completeGoal,
+    toggleDeathLink,
+    sendDeathLink,
     debugReceiveItem,
     say,
     // Expose items composable

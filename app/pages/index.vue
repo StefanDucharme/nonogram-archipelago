@@ -29,11 +29,17 @@
     status,
     lastMessage,
     messageLog,
+    slotData,
+    deathLinkEnabled,
+    goalCompleted,
     connect,
     disconnect,
     checkLocation,
     checkLocations,
     checkPuzzleSolved,
+    checkGoalCompletion,
+    toggleDeathLink,
+    sendDeathLink,
     debugReceiveItem,
     items,
   } = useArchipelago();
@@ -267,8 +273,20 @@
         checkLocations(newLocationChecks);
       }
       checkPuzzleSolved(); // Legacy logging
+      // Check if we've reached the goal
+      checkGoalCompletion();
     }
   });
+
+  // Watch for game over (lost all lives) to send Death Link
+  watch(
+    () => items.currentLives.value,
+    (newLives, oldLives) => {
+      if (newLives === 0 && oldLives > 0 && deathLinkEnabled.value) {
+        sendDeathLink('Lost all lives on a puzzle');
+      }
+    },
+  );
 
   function clampInt(v: any, min: number, max: number) {
     const n = Number.parseInt(String(v ?? ''), 10);
