@@ -14,8 +14,8 @@ import {
 } from '~/utils/nonogram';
 
 export function useNonogram() {
-  const rows = ref(10);
-  const cols = ref(10);
+  const rows = ref(5);
+  const cols = ref(5);
   const fillRate = ref(0.45);
 
   // SSR-safe deterministic initial state
