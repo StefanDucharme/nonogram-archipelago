@@ -44,13 +44,35 @@
     items,
   } = useArchipelago();
 
-  // Loading state
+  // Loading state - start as true on server, will be set false on client after hydration
   const isLoading = ref(true);
+  const isClientReady = ref(false);
+
+  // Track if we're on mobile for tab visibility logic
+  const isMobile = ref(false);
 
   onMounted(() => {
-    // Small delay to ensure everything is rendered
+    // Check mobile on mount and resize
+    const checkMobile = () => {
+      isMobile.value = window.innerWidth < 1024; // lg breakpoint
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    // Wait for next tick after mount to ensure hydration is complete
     nextTick(() => {
-      isLoading.value = false;
+      // Generate a fresh puzzle to ensure clean state
+      newRandom(rows.value, cols.value);
+      // Small delay to ensure styles are fully applied
+      setTimeout(() => {
+        isClientReady.value = true;
+        isLoading.value = false;
+      }, 100);
+    });
+
+    // Cleanup on unmount
+    onUnmounted(() => {
+      window.removeEventListener('resize', checkMobile);
     });
   });
 
@@ -337,9 +359,19 @@
     return Math.max(min, Math.min(max, n));
   }
 
-  /** Right panel tabs */
+  /** Right panel tabs - on mobile, 'puzzle' is also a tab */
+  type MobileTab = 'puzzle' | 'archipelago' | 'settings' | 'chat' | 'shop' | 'debug';
   type RightTab = 'archipelago' | 'settings' | 'chat' | 'shop' | 'debug';
   const activeTab = ref<RightTab>('settings');
+  const activeMobileTab = ref<MobileTab>('puzzle');
+
+  // Computed to check if a specific tab should be shown
+  const isTabVisible = (tab: RightTab) => {
+    if (isMobile.value) {
+      return activeMobileTab.value === tab;
+    }
+    return activeTab.value === tab;
+  };
 
   /** Keep rows & cols equal */
   const lockSize = ref(true);
@@ -463,36 +495,68 @@
 </script>
 
 <template>
-  <!-- Loading Screen -->
-  <div v-if="isLoading" class="fixed inset-0 z-50 bg-neutral-950 flex flex-col items-center justify-center">
-    <div class="text-center space-y-6">
-      <div class="space-y-2">
-        <h1 class="text-2xl font-bold text-neutral-100">Archipelago Nonogram</h1>
-        <p class="text-sm text-neutral-400">Loading puzzle...</p>
-      </div>
+  <!-- Loading Screen with inline styles for SSR -->
+  <div
+    v-if="isLoading"
+    style="
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background-color: #0a0a0a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    "
+  >
+    <div style="text-align: center">
+      <h1 style="font-size: 1.5rem; font-weight: bold; color: #f5f5f5; margin-bottom: 0.5rem">Archipelago Nonogram</h1>
+      <p style="font-size: 0.875rem; color: #a3a3a3">Loading puzzle...</p>
     </div>
   </div>
 
-  <div class="h-screen bg-neutral-950 text-neutral-100 flex flex-col overflow-hidden">
-    <div class="flex flex-1 min-h-0">
-      <!-- Main content area -->
-      <div class="flex-1 px-6 overflow-auto">
+  <div v-show="!isLoading" class="h-screen bg-neutral-950 text-neutral-100 flex flex-col overflow-hidden">
+    <!-- Mobile Tab Bar (visible only on mobile) -->
+    <div class="lg:hidden flex border-b border-neutral-700/50 bg-neutral-900/95 shrink-0 overflow-x-auto">
+      <button class="tab-button flex-1 min-w-0 px-2" :class="{ active: activeMobileTab === 'puzzle' }" @click="activeMobileTab = 'puzzle'">
+        <span class="text-xs">🧩</span>
+      </button>
+      <button class="tab-button flex-1 min-w-0 px-2" :class="{ active: activeMobileTab === 'archipelago' }" @click="activeMobileTab = 'archipelago'">
+        <span class="text-xs">🏝️</span>
+      </button>
+      <button class="tab-button flex-1 min-w-0 px-2" :class="{ active: activeMobileTab === 'settings' }" @click="activeMobileTab = 'settings'">
+        <span class="text-xs">⚙️</span>
+      </button>
+      <button class="tab-button flex-1 min-w-0 px-2" :class="{ active: activeMobileTab === 'chat' }" @click="activeMobileTab = 'chat'">
+        <span class="text-xs">💬</span>
+      </button>
+      <button class="tab-button flex-1 min-w-0 px-2" :class="{ active: activeMobileTab === 'shop' }" @click="activeMobileTab = 'shop'">
+        <span class="text-xs">🛒</span>
+      </button>
+      <button class="tab-button flex-1 min-w-0 px-2" :class="{ active: activeMobileTab === 'debug' }" @click="activeMobileTab = 'debug'">
+        <span class="text-xs">🐛</span>
+      </button>
+    </div>
+
+    <div class="flex flex-col lg:flex-row flex-1 min-h-0">
+      <!-- Main content area (grid) - hidden on mobile when not on puzzle tab -->
+      <div class="flex-1 px-3 sm:px-6 py-2 sm:py-0 overflow-auto min-h-0" :class="{ 'hidden lg:block': activeMobileTab !== 'puzzle' }">
         <!-- LEFT: board -->
-        <div class="glass-card p-6 animate-fade-in">
+        <div class="glass-card p-3 animate-fade-in">
           <!-- Status bar: Lives, Coins-->
-          <div class="flex items-center justify-between mb-4 pb-4 border-b border-neutral-700/50">
-            <div class="flex items-center gap-6">
-              <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-1 pb-1 border-b border-neutral-700/50">
+            <div class="flex flex-wrap items-center gap-3 sm:gap-6">
+              <div class="hidden sm:flex items-center gap-2">
                 <span class="text-sm text-neutral-400">Archipelago Nonogram</span>
               </div>
               <!-- Lives Display -->
-              <div class="flex items-center gap-2">
-                <span class="text-sm text-neutral-400">Lives:</span>
+              <div class="flex items-center gap-1 sm:gap-2">
+                <span class="text-xs sm:text-sm text-neutral-400">Lives:</span>
                 <div class="flex items-center gap-0.5">
                   <span
                     v-for="i in items.maxLives.value"
                     :key="i"
-                    class="text-lg"
+                    class="text-base sm:text-lg"
                     :class="i <= items.currentLives.value ? 'text-red-400' : 'text-neutral-600'"
                   >
                     ♥
@@ -501,9 +565,9 @@
                 </div>
               </div>
               <!-- Coins Display -->
-              <div class="flex items-center gap-2">
-                <span class="text-sm text-neutral-400">Coins:</span>
-                <span class="text-lg font-bold text-amber-400">🪙 {{ items.coins.value }}</span>
+              <div class="flex items-center gap-1 sm:gap-2">
+                <span class="text-xs sm:text-sm text-neutral-400">Coins:</span>
+                <span class="text-base sm:text-lg font-bold text-amber-400">🪙 {{ items.coins.value }}</span>
                 <span v-if="items.unlimitedCoins.value" class="text-xs text-neutral-500">(∞)</span>
               </div>
             </div>
@@ -511,38 +575,42 @@
 
           <div
             v-if="solved"
-            class="mb-6 p-4 rounded-sm border border-accent-500/40 bg-accent-500/10 text-accent-200 celebration-glow animate-slide-up"
+            class="mb-4 sm:mb-6 p-3 sm:p-4 rounded-sm border border-accent-500/40 bg-accent-500/10 text-accent-200 celebration-glow animate-slide-up"
           >
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div class="flex items-center gap-3">
-                <span class="text-2xl">🎉</span>
+                <span class="text-xl sm:text-2xl">🎉</span>
                 <div>
-                  <div class="font-semibold">Puzzle Solved!</div>
-                  <div class="text-sm text-accent-300/80">Congratulations on completing the nonogram!</div>
+                  <div class="font-semibold text-sm sm:text-base">Puzzle Solved!</div>
+                  <div class="text-xs sm:text-sm text-accent-300/80">Congratulations on completing the nonogram!</div>
                 </div>
               </div>
-              <button type="button" class="btn-primary" @click="randomize()">New Puzzle</button>
+              <button type="button" class="btn-primary text-sm w-full sm:w-auto" @click="randomize()">New Puzzle</button>
             </div>
           </div>
 
           <!-- Game Over Message -->
-          <div v-if="gameOver && !solved" class="mb-6 p-4 rounded-sm border border-red-500/40 bg-red-500/10 text-red-200 animate-slide-up">
-            <div class="flex items-center justify-between">
+          <div
+            v-if="gameOver && !solved"
+            class="mb-4 sm:mb-6 p-3 sm:p-4 rounded-sm border border-red-500/40 bg-red-500/10 text-red-200 animate-slide-up"
+          >
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div class="flex items-center gap-3">
-                <span class="text-2xl">💔</span>
+                <span class="text-xl sm:text-2xl">💔</span>
                 <div>
-                  <div class="font-semibold">Game Over!</div>
-                  <div class="text-sm text-red-300/80">You ran out of lives. Try again?</div>
+                  <div class="font-semibold text-sm sm:text-base">Game Over!</div>
+                  <div class="text-xs sm:text-sm text-red-300/80">You ran out of lives. Try again?</div>
                 </div>
               </div>
-              <button type="button" class="btn-primary" @click="randomize()">New Puzzle</button>
+              <button type="button" class="btn-primary text-sm w-full sm:w-auto" @click="randomize()">New Puzzle</button>
             </div>
           </div>
 
-          <div class="flex gap-6">
+          <div class="flex flex-col sm:flex-row gap-4 sm:gap-6 items-center sm:items-start">
             <!-- Grid -->
             <div class="shrink-0">
               <NonogramBoard
+                v-if="isClientReady"
                 :rows="rows"
                 :cols="cols"
                 :row-clues="rowClueNumbers"
@@ -560,6 +628,9 @@
                 :is-col-hint-revealed="items.isColHintRevealed"
                 @cell="handleCellChange"
               />
+              <div v-else class="flex items-center justify-center" style="width: 300px; height: 300px">
+                <p class="text-neutral-400">Loading puzzle...</p>
+              </div>
             </div>
 
             <!-- Solution Grid (debug) -->
@@ -634,15 +705,15 @@
         </div>
       </div>
 
-      <!-- RIGHT: sidebar attached to right side -->
+      <!-- RIGHT: sidebar attached to right side (hidden on mobile when puzzle tab active) -->
       <div
-        class="w-1/3 shrink-0 bg-neutral-900/95 backdrop-blur-lg border-l border-neutral-700 flex h-full animate-fade-in"
-        style="box-shadow: -8px 0 32px rgba(0, 0, 0, 0.3)"
+        class="w-full lg:w-1/3 shrink-0 bg-neutral-900/95 backdrop-blur-lg border-t lg:border-t-0 lg:border-l border-neutral-700 flex flex-col lg:flex-row min-h-0 flex-1 lg:flex-initial overflow-hidden"
+        :class="{ 'hidden lg:flex': activeMobileTab === 'puzzle' }"
       >
-        <!-- Active Abilities Panel - left side of right panel -->
-        <div class="w-44 shrink-0 p-3 border-r border-neutral-700/50 bg-neutral-900/95 overflow-auto">
-          <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">Abilities</h3>
-          <div class="space-y-2">
+        <!-- Active Abilities Panel - hidden on mobile, shown on desktop -->
+        <div class="hidden lg:block lg:w-44 shrink-0 p-3 lg:border-r border-neutral-700/50 bg-neutral-900/95 lg:overflow-auto">
+          <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2 lg:mb-3">Abilities</h3>
+          <div class="flex flex-wrap gap-3 lg:flex-col lg:gap-0 lg:space-y-2">
             <!-- Place X Markers -->
             <div class="flex items-center gap-1.5 text-xs" :class="items.unlocks.placeX ? 'text-lime-400' : 'text-neutral-500'">
               <span>{{ items.unlocks.placeX ? '✓' : '🔒' }}</span>
@@ -678,8 +749,8 @@
             </div>
           </div>
 
-          <!-- Checks Section -->
-          <div v-if="items.archipelagoMode.value" class="mt-3 pt-3 border-t border-neutral-700/50">
+          <!-- Checks Section - hidden on mobile for space -->
+          <div v-if="items.archipelagoMode.value" class="hidden lg:block mt-3 pt-3 border-t border-neutral-700/50">
             <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Checks</h3>
             <div class="space-y-1">
               <div
@@ -702,19 +773,23 @@
 
         <!-- Right side: tabs and content -->
         <div class="flex-1 flex flex-col min-w-0">
-          <!-- tab bar -->
-          <div class="flex border-b border-neutral-700/50 shrink-0">
-            <button class="tab-button" :class="{ active: activeTab === 'archipelago' }" @click="activeTab = 'archipelago'">Archipelago</button>
-            <button class="tab-button" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">Settings</button>
-            <button class="tab-button" :class="{ active: activeTab === 'chat' }" @click="activeTab = 'chat'">Chat</button>
-            <button class="tab-button" :class="{ active: activeTab === 'shop' }" @click="activeTab = 'shop'">Shop</button>
-            <button class="tab-button" :class="{ active: activeTab === 'debug' }" @click="activeTab = 'debug'">Debug</button>
+          <!-- tab bar (desktop only - mobile uses top tab bar) -->
+          <div class="hidden lg:flex border-b border-neutral-700/50 shrink-0 overflow-x-auto">
+            <button class="tab-button whitespace-nowrap" :class="{ active: activeTab === 'archipelago' }" @click="activeTab = 'archipelago'">
+              Archipelago
+            </button>
+            <button class="tab-button whitespace-nowrap" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">
+              Settings
+            </button>
+            <button class="tab-button whitespace-nowrap" :class="{ active: activeTab === 'chat' }" @click="activeTab = 'chat'">Chat</button>
+            <button class="tab-button whitespace-nowrap" :class="{ active: activeTab === 'shop' }" @click="activeTab = 'shop'">Shop</button>
+            <button class="tab-button whitespace-nowrap" :class="{ active: activeTab === 'debug' }" @click="activeTab = 'debug'">Debug</button>
           </div>
 
-          <!-- tab content -->
+          <!-- tab content - on mobile, show based on activeMobileTab; on desktop, show based on activeTab -->
           <div class="p-4 flex-1 overflow-auto">
             <!-- SETTINGS -->
-            <div v-if="activeTab === 'settings'" class="space-y-6">
+            <div v-if="isTabVisible('settings')" class="space-y-6">
               <div class="flex items-center gap-3 mb-6">
                 <div>
                   <h2 class="font-semibold text-neutral-100">Game Settings</h2>
@@ -950,7 +1025,7 @@
             </div>
 
             <!-- ARCHIPELAGO -->
-            <div v-else-if="activeTab === 'archipelago'" class="space-y-6">
+            <div v-else-if="isTabVisible('archipelago')" class="space-y-6">
               <div class="flex items-center gap-3">
                 <div>
                   <h2 class="font-semibold text-neutral-100">Archipelago Connection</h2>
@@ -996,7 +1071,7 @@
             </div>
 
             <!-- CHAT -->
-            <div v-else-if="activeTab === 'chat'" class="space-y-6">
+            <div v-else-if="isTabVisible('chat')" class="space-y-6">
               <div class="flex items-center gap-3">
                 <div>
                   <h2 class="font-semibold text-neutral-100">Game Log</h2>
@@ -1033,7 +1108,7 @@
             </div>
 
             <!-- SHOP / ITEMS -->
-            <div v-else-if="activeTab === 'shop'" class="space-y-6">
+            <div v-else-if="isTabVisible('shop')" class="space-y-6">
               <div class="flex items-center gap-3">
                 <div>
                   <h2 class="font-semibold text-neutral-100">Shop & Items</h2>
@@ -1194,7 +1269,7 @@
             </div>
 
             <!-- DEBUG -->
-            <div v-else class="space-y-6">
+            <div v-else-if="isTabVisible('debug')" class="space-y-6">
               <div class="flex items-center gap-3">
                 <div>
                   <h2 class="font-semibold text-neutral-100">Debug Tools</h2>

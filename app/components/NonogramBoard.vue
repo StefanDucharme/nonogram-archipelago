@@ -40,23 +40,46 @@
     }
   }
 
-  // Add global pointer up listener
+  // Track if component is mounted (client-side)
+  const isMounted = ref(false);
+
+  // Reactive window width for responsive sizing - use consistent default for SSR
+  const windowWidth = ref(520);
+
+  function updateWindowWidth() {
+    if (typeof window !== 'undefined') {
+      windowWidth.value = window.innerWidth;
+    }
+  }
+
+  // Add global event listeners
   onMounted(() => {
+    isMounted.value = true;
     document.addEventListener('pointerup', handleGlobalPointerUp);
+    updateWindowWidth();
+    window.addEventListener('resize', updateWindowWidth);
   });
 
   onUnmounted(() => {
     document.removeEventListener('pointerup', handleGlobalPointerUp);
+    window.removeEventListener('resize', updateWindowWidth);
   });
 
   const colDepth = computed(() => Math.max(1, ...props.colClues.map((c) => c.length)));
   const rowDepth = computed(() => Math.max(1, ...props.rowClues.map((r) => r.length)));
 
-  const MAX_BOARD_PX = 520;
+  // Scale MAX_BOARD_PX based on screen size
+  const MAX_BOARD_PX = computed(() => {
+    if (windowWidth.value < 640) {
+      // Mobile: use most of the screen width (with some padding)
+      return Math.min(windowWidth.value - 80, 400);
+    }
+    return 520;
+  });
 
   const cellSize = computed(() => {
     const count = Math.max(props.rows, props.cols);
-    return Math.max(18, Math.floor(MAX_BOARD_PX / count));
+    return Math.max(14, Math.floor(MAX_BOARD_PX.value / count));
   });
 
   const groupSize = 5;
@@ -228,10 +251,10 @@
 </script>
 
 <template>
-  <div class="select-none" :style="{ '--cell': `${cellSize}px` }">
+  <div class="select-none touch-none" :style="{ '--cell': `${cellSize}px` }">
     <!-- Whole thing is a 2x2 grid: [corner | col clues] / [row clues | board] -->
     <div
-      class="grid gap-2"
+      class="grid gap-1 sm:gap-2"
       :style="{
         gridTemplateColumns: `auto 1fr`,
         gridTemplateRows: `auto 1fr`,
