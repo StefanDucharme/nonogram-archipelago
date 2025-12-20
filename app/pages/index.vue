@@ -1384,12 +1384,13 @@
             </div>
           </div>
 
-          <!-- Right side: Latest message (always takes half) -->
+          <!-- Right side: Latest message and version (always takes half) -->
           <div class="w-1/2 text-xs text-neutral-400 truncate text-right">
             <span v-if="lastMessage" :key="lastMessage" class="inline-block animate-message-flash">
               <span class="opacity-60">Latest:</span> {{ lastMessage }}
             </span>
             <span v-else class="opacity-40">No messages</span>
+            <span class="ml-4 opacity-30">v0.2</span>
           </div>
         </div>
       </div>
