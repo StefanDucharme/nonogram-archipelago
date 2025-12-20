@@ -629,33 +629,32 @@
           </div>
 
           <div class="flex flex-col sm:flex-row gap-4 sm:gap-6 items-center justify-center sm:items-start sm:justify-start">
-            <!-- Grid - scroll container for large grids -->
-            <div
-              class="shrink-0 overflow-auto lg:overflow-auto grid-scroll-container"
-              style="max-width: calc(100vw - 48px); max-height: calc(100dvh - 140px)"
-            >
-              <NonogramBoard
-                v-if="isClientReady"
-                :rows="rows"
-                :cols="cols"
-                :row-clues="rowClueNumbers"
-                :col-clues="colClueNumbers"
-                :player="player"
-                :solution="solution"
-                :show-mistakes="effectiveShowMistakes || checkPulse"
-                :auto-x="effectiveAutoX"
-                :grey-completed-hints="effectiveGreyHints"
-                :is-row-clue-complete="isRowClueComplete"
-                :is-col-clue-complete="isColClueComplete"
-                :show-debug-grid="showDebugGrid"
-                :drag-painting="effectiveDragPainting"
-                :is-row-hint-revealed="items.isRowHintRevealed"
-                :is-col-hint-revealed="items.isColHintRevealed"
-                @cell="handleCellChange"
-              />
-              <div v-else class="flex items-center justify-center" style="width: 300px; height: 300px">
-                <p class="text-neutral-400">Loading puzzle...</p>
-              </div>
+            <!-- Grid - with custom scrollbars on mobile -->
+            <div class="shrink-0 pr-10 lg:pr-0">
+              <ScrollableGrid max-width="calc(100vw - 80px)" max-height="calc(100dvh - 160px)">
+                <NonogramBoard
+                  v-if="isClientReady"
+                  :rows="rows"
+                  :cols="cols"
+                  :row-clues="rowClueNumbers"
+                  :col-clues="colClueNumbers"
+                  :player="player"
+                  :solution="solution"
+                  :show-mistakes="effectiveShowMistakes || checkPulse"
+                  :auto-x="effectiveAutoX"
+                  :grey-completed-hints="effectiveGreyHints"
+                  :is-row-clue-complete="isRowClueComplete"
+                  :is-col-clue-complete="isColClueComplete"
+                  :show-debug-grid="showDebugGrid"
+                  :drag-painting="effectiveDragPainting"
+                  :is-row-hint-revealed="items.isRowHintRevealed"
+                  :is-col-hint-revealed="items.isColHintRevealed"
+                  @cell="handleCellChange"
+                />
+                <div v-else class="flex items-center justify-center" style="width: 300px; height: 300px">
+                  <p class="text-neutral-400">Loading puzzle...</p>
+                </div>
+              </ScrollableGrid>
             </div>
 
             <!-- Solution Grid (debug) -->

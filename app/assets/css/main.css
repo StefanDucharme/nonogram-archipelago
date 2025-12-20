@@ -175,7 +175,7 @@ body {
   touch-action: none;
 }
 
-/* Grid scroll container - scrollbars only when needed on desktop */
+/* Grid scroll container - for desktop only */
 .grid-scroll-container {
   overflow: auto;
   scrollbar-width: auto;
@@ -204,26 +204,6 @@ body {
 
 .grid-scroll-container::-webkit-scrollbar-corner {
   background: #262626;
-}
-
-/* Mobile scroll improvements */
-@media (max-width: 1024px) {
-  .grid-scroll-container {
-    /* Force scroll on mobile for touch scrolling */
-    overflow: scroll;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: auto;
-  }
-
-  .grid-scroll-container::-webkit-scrollbar {
-    width: 16px;
-    height: 16px;
-  }
-
-  .grid-scroll-container::-webkit-scrollbar-thumb {
-    min-height: 50px;
-    min-width: 50px;
-  }
 }
 
 /* Success/celebration styles */
