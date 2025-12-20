@@ -50,39 +50,110 @@ npm run dev
 
 The app will be available at `http://localhost:3000`
 
-## Archipelago Setup
 
-For detailed local testing instructions, see [LOCAL_TESTING.md](LOCAL_TESTING.md).
+## Archipelago Local Testing & Setup
 
-### Installing the APWorld
+For detailed local testing, see [LOCAL_TESTING.md](LOCAL_TESTING.md). Below is a summary of the most up-to-date process:
 
-1. Navigate to the `apworld` folder in this repository
-2. Run the build script:
-   ```bash
-   cd apworld
-   python build_apworld.py
-   ```
-3. Copy the generated `nonogram.apworld` to your Archipelago `custom_worlds` folder
-   - Or copy the `apworld/nonogram` folder to `Archipelago/worlds/`
+### 1. Build the APWorld file
 
-### Generating a Game
+Open a terminal and run:
 
-1. Create a YAML file for your game (see `apworld/Nonogram.yaml` for an example)
-2. Place it in Archipelago's `Players` folder
-3. Generate the game using the Archipelago launcher or:
-   ```bash
-   python Generate.py
-   ```
+```powershell
+cd E:\repo\personal\nonogram-archipelago\apworld
+python build_apworld.py
+```
+
+This creates `nonogram.apworld` in the `apworld` folder.
+
+### 2. Install the APWorld in Archipelago
+
+1. Open `ArchipelagoLauncher.exe`
+2. Click **"Install APWorld"**
+3. Select the `nonogram.apworld` file you just built
+4. Restart the Launcher if prompted
+
+### 3. Create a Test YAML
+
+Copy the example YAML to the Archipelago `Players` folder:
+
+```powershell
+copy apworld\Nonogram.yaml <ARCHIPELAGO_PATH>\Players\
+```
+
+Or create `Players/Nonogram.yaml` with:
+
+```yaml
+name: TestPlayer
+game: Nonogram
+Nonogram:
+  starting_lives: 3
+  starting_coins: 5
+  starting_hints: 1
+  coins_per_bundle: 5
+  extra_lives_in_pool: 5
+  hint_reveals_in_pool: 10
+  coin_bundles_in_pool: 15
+  cell_solves_in_pool: 3
+  goal_puzzles: 16
+  death_link: false
+```
+
+### 4. Generate a Game
+
+1. In the Archipelago Launcher, click **"Generate"**
+2. It will use YAML files from your Players folder
+3. The generated `.archipelago` file appears in the `output/` folder
+
+### 5. Start the Server
+
+**Using the Launcher:**
+1. Open `ArchipelagoLauncher.exe`
+2. Click "Host"
+3. Select your generated `.archipelago` file from `output/`
+
+
+
+The server will display:
+```
+Server running on port 38281
+```
+
+### 6. Start the Nonogram Client
+
+In a new terminal:
+
+```powershell
+cd E:\repo\personal\nonogram-archipelago
+npm run dev
+```
+
+Open http://localhost:3000 in your browser.
+
+### 7. Connect
+
+1. Click on the **Archipelago** tab in the right panel
+2. Enter connection details:
+   - **Host**: `localhost`
+   - **Port**: `38281`
+   - **Slot**: `TestPlayer` (must match your YAML `name` field)
+   - **Password**: (leave empty unless you set one)
+3. Click **Connect**
 
 ### Game Options
 
-| Option | Range | Default | Description |
-|--------|-------|---------|-------------|
-| `starting_lives` | 1-10 | 3 | Lives per puzzle |
-| `starting_coins` | 0-50 | 5 | Starting coins |
-| `starting_hints` | 0-5 | 1 | Hints revealed per puzzle |
-| `goal_puzzles` | 1-100 | 64 | Puzzles required to win |
-| `death_link` | on/off | off | Share deaths with other players |
+| Option                | Range   | Default | Description                        |
+|-----------------------|---------|---------|------------------------------------|
+| `starting_lives`      | 1-10    | 3       | Lives per puzzle                   |
+| `starting_coins`      | 0-50    | 5       | Starting coins                     |
+| `starting_hints`      | 0-5     | 1       | Hints revealed per puzzle          |
+| `coins_per_bundle`    | 1-50    | 5       | Coins per Coin Bundle item         |
+| `extra_lives_in_pool` | 0-50    | 5       | Extra Life items in pool           |
+| `hint_reveals_in_pool`| 0-50    | 10      | Hint Reveal items in pool          |
+| `coin_bundles_in_pool`| 0-50    | 15      | Coin Bundle items in pool          |
+| `cell_solves_in_pool` | 0-50    | 3       | Cell Solve items in pool           |
+| `goal_puzzles`        | 1-100   | 16      | Puzzles required to win            |
+| `death_link`          | true/false | false | Share deaths with other players    |
 
 ## Usage
 
@@ -154,11 +225,8 @@ nonogram-archipelago/
 # Start development server
 npm run dev
 
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
+# To generate static site for hosting
+npm run generate
 
 # Build APWorld
 cd apworld && python build_apworld.py

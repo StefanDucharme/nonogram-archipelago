@@ -1,46 +1,19 @@
-# Example YAML for Nonogram Archipelago
-# Copy this to Archipelago/Players/Nonogram.yaml
-
-name: NonogramPlayer  # Your slot name - use this when connecting
-game: Nonogram
+# Example Nonogram Archipelago Player YAML
+name: NonogramPlayer1          # Slot name (must match client)
+game: Nonogram                 # Do not change
 
 Nonogram:
-  # === Starting Resources ===
-
-  # Number of lives per puzzle (1-10, default: 3)
-  starting_lives: 3
-
-  # Starting coins for the shop (0-50, default: 5)
-  starting_coins: 5
-
-  # Row/column hints revealed at puzzle start (0-5, default: 1)
-  starting_hints: 1
-
-  # Coins received from Coin Bundle items (1-20, default: 5)
-  coins_per_bundle: 5
-
-  # === Item Pool Counts ===
-
-  # Extra Life items in the pool (0-10, default: 5)
-  extra_lives_in_pool: 5
-
-  # Hint Reveal items in the pool (0-20, default: 10)
-  hint_reveals_in_pool: 10
-
-  # Coin Bundle items in the pool (0-30, default: 15)
-  coin_bundles_in_pool: 15
-
-  # Random Cell Solve items in the pool (0-10, default: 3)
-  cell_solves_in_pool: 3
-
-  # === Goal ===
-
-  # Puzzles required to complete goal (1-100, default: 64)
-  # This determines which milestone triggers victory
-  goal_puzzles: 16
-
-  # === Optional Features ===
-
-  # Enable Death Link (true/false, default: false)
-  # When enabled: losing all lives sends death, receiving death loses a life
-  death_link: false
+  starting_lives: 3            # Number of lives at start
+  starting_coins: 5            # Coins at start
+  starting_hints: 1            # Hints at start
+  coins_per_bundle: 5          # Coins per Coin Bundle item
+  extra_lives_in_pool: 5       # Extra Life items in pool
+  hint_reveals_in_pool: 10     # Hint Reveal items in pool
+  coin_bundles_in_pool: 15     # Coin Bundle items in pool
+  cell_solves_in_pool: 3       # Cell Solve items in pool
+  goal_puzzles: 16             # Number of puzzles to complete to win
+  death_link: false            # Enable DeathLink (true/false)
+  # Optional advanced settings (uncomment to use):
+  # puzzle_difficulty: normal   # Options: easy, normal, hard
+  # allow_mistakes: true        # Allow mistakes (true/false)
+  # puzzle_seed: 123456         # Set a specific puzzle seed
