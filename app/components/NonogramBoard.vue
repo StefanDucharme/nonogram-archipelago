@@ -272,14 +272,16 @@
                 })()
               "
             >
-              <!-- show from bottom -->
+              <!-- show from bottom, hide 0 clues -->
               {{
                 (() => {
                   const clueArray = colClues[c - 1];
                   const clueIndex = i - 1 - (colDepth - clueArray.length);
                   if (clueIndex >= 0 && clueIndex < clueArray.length) {
+                    const clueValue = clueArray[clueIndex];
+                    if (clueValue === 0) return ''; // Hide 0 clues
                     const isRevealed = props.isColHintRevealed?.(c - 1) ?? true;
-                    return isRevealed ? clueArray[clueIndex] : '?';
+                    return isRevealed ? clueValue : '?';
                   }
                   return '';
                 })()
@@ -315,14 +317,16 @@
                 })()
               "
             >
-              <!-- show from right -->
+              <!-- show from right, hide 0 clues -->
               {{
                 (() => {
                   const clueArray = rowClues[r - 1];
                   const clueIndex = i - 1 - (rowDepth - clueArray.length);
                   if (clueIndex >= 0 && clueIndex < clueArray.length) {
+                    const clueValue = clueArray[clueIndex];
+                    if (clueValue === 0) return ''; // Hide 0 clues
                     const isRevealed = props.isRowHintRevealed?.(r - 1) ?? true;
-                    return isRevealed ? clueArray[clueIndex] : '?';
+                    return isRevealed ? clueValue : '?';
                   }
                   return '';
                 })()
