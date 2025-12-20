@@ -633,7 +633,7 @@
 
           <div class="flex flex-col sm:flex-row gap-4 sm:gap-6 items-center justify-center sm:items-start sm:justify-start">
             <!-- Grid - with custom scrollbars on mobile -->
-            <div class="shrink-0 pr-10 lg:pr-0">
+            <div class="shrink-0 lg:pr-0">
               <ScrollableGrid max-width="calc(100vw - 80px)" max-height="calc(100dvh - 160px)">
                 <NonogramBoard
                   v-if="isClientReady"
