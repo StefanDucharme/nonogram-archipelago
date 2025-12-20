@@ -78,7 +78,15 @@
   // Track completed rows/columns to award coins only once
   const completedRows = ref<Set<number>>(new Set());
   const completedCols = ref<Set<number>>(new Set());
-  const hasCompletedFirstLine = ref(false); // Track if we've sent first line check this session
+  const hasCompletedFirstLineThisPuzzle = ref(false); // Track if we've sent first line check for current puzzle
+
+  // Helper to get difficulty string from current puzzle size
+  function getCurrentDifficulty(): '5x5' | '10x10' | '15x15' | '20x20' {
+    if (rows.value >= 20) return '20x20';
+    if (rows.value >= 15) return '15x15';
+    if (rows.value >= 10) return '10x10';
+    return '5x5';
+  }
 
   // Check for newly completed rows/columns and award coins
   function checkLineCompletions() {
@@ -104,11 +112,15 @@
 
       if (rowComplete) {
         completedRows.value.add(r);
-        items.addCoins(coinsPerLine.value);
+        const coinChecks = items.addCoins(coinsPerLine.value);
+        if (coinChecks.length > 0) {
+          checkLocations(coinChecks);
+        }
         // Check for first line completion and send to AP
-        if (!hasCompletedFirstLine.value) {
-          hasCompletedFirstLine.value = true;
-          const locationId = items.markFirstLineCompleted();
+        if (!hasCompletedFirstLineThisPuzzle.value) {
+          hasCompletedFirstLineThisPuzzle.value = true;
+          const difficulty = getCurrentDifficulty();
+          const locationId = items.markFirstLineCompleted(difficulty);
           if (locationId !== null) {
             checkLocation(locationId);
           }
@@ -142,11 +154,15 @@
 
       if (colComplete) {
         completedCols.value.add(c);
-        items.addCoins(coinsPerLine.value);
+        const coinChecks = items.addCoins(coinsPerLine.value);
+        if (coinChecks.length > 0) {
+          checkLocations(coinChecks);
+        }
         // Check for first line completion and send to AP
-        if (!hasCompletedFirstLine.value) {
-          hasCompletedFirstLine.value = true;
-          const locationId = items.markFirstLineCompleted();
+        if (!hasCompletedFirstLineThisPuzzle.value) {
+          hasCompletedFirstLineThisPuzzle.value = true;
+          const difficulty = getCurrentDifficulty();
+          const locationId = items.markFirstLineCompleted(difficulty);
           if (locationId !== null) {
             checkLocation(locationId);
           }
@@ -183,13 +199,19 @@
     // Award coins for correct placements
     if (mode === 'fill' && newState === 'fill') {
       if (shouldBeFilled) {
-        items.addCoins(1); // Correct fill
+        const coinChecks = items.addCoins(1); // Correct fill
+        if (coinChecks.length > 0) {
+          checkLocations(coinChecks);
+        }
       } else {
         items.loseLife(); // Mistake
       }
     } else if (mode === 'x' && newState === 'x') {
       if (!shouldBeFilled) {
-        items.addCoins(1); // Correct X
+        const coinChecks = items.addCoins(1); // Correct X
+        if (coinChecks.length > 0) {
+          checkLocations(coinChecks);
+        }
       }
     }
 
@@ -266,7 +288,12 @@
 
   // Buy difficulty increase
   function buyDifficultyIncrease() {
-    if (items.buyDifficultyIncrease()) {
+    const result = items.buyDifficultyIncrease();
+    if (result.success) {
+      // Send difficulty unlock checks to AP
+      if (result.checks.length > 0) {
+        checkLocations(result.checks);
+      }
       // Regenerate puzzle at new difficulty
       randomize();
     }
@@ -282,7 +309,8 @@
   watch(solved, (isSolved, wasSolved) => {
     if (isSolved && !wasSolved) {
       // Mark puzzle completed and get any new location checks
-      const newLocationChecks = items.markPuzzleCompleted();
+      const difficulty = getCurrentDifficulty();
+      const newLocationChecks = items.markPuzzleCompleted(difficulty);
       // Send all new checks to AP
       if (newLocationChecks.length > 0) {
         checkLocations(newLocationChecks);
@@ -361,6 +389,7 @@
     // Reset completed line tracking
     completedRows.value = new Set();
     completedCols.value = new Set();
+    hasCompletedFirstLineThisPuzzle.value = false;
     // Select which hints to reveal for this puzzle
     items.selectRevealedHints(rows.value, cols.value);
   }

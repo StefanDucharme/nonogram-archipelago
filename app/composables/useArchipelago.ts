@@ -193,11 +193,15 @@ export function useArchipelago() {
   }
 
   function handleItemReceived(itemId: number): string | null {
-    const itemName = items.receiveItem(itemId);
-    if (itemName) {
-      lastMessage.value = `Received: ${itemName}`;
+    const result = items.receiveItem(itemId);
+    if (result.itemName) {
+      lastMessage.value = `Received: ${result.itemName}`;
     }
-    return itemName;
+    // Send any checks triggered by receiving this item (e.g., coin milestones from coin bundles)
+    if (result.checks.length > 0) {
+      checkLocations(result.checks);
+    }
+    return result.itemName;
   }
 
   // Send a location check to the server
@@ -215,7 +219,11 @@ export function useArchipelago() {
 
   // Check multiple locations at once
   function checkLocations(locationIds: number[]) {
-    if (status.value !== 'connected') return;
+    console.log('[DEBUG checkLocations] locationIds:', locationIds, 'status:', status.value);
+    if (status.value !== 'connected') {
+      console.log('[DEBUG checkLocations] Not connected, skipping');
+      return;
+    }
     try {
       client.check(...locationIds);
       addLogMessage(`Checked ${locationIds.length} location(s).`, 'info');
@@ -247,7 +255,10 @@ export function useArchipelago() {
     if (goalCompleted.value) return;
 
     const goalPuzzles = slotData.value?.goal_puzzles ?? 64;
-    if (items.puzzlesCompleted.value >= goalPuzzles) {
+    // Sum all puzzles completed across all difficulties
+    const totalCompleted =
+      items.puzzlesCompleted['5x5'] + items.puzzlesCompleted['10x10'] + items.puzzlesCompleted['15x15'] + items.puzzlesCompleted['20x20'];
+    if (totalCompleted >= goalPuzzles) {
       completeGoal();
     }
   }
