@@ -562,7 +562,10 @@
 
     <div class="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
       <!-- Main content area (grid) - hidden on mobile when not on puzzle tab -->
-      <div class="flex-1 px-3 sm:px-6 py-2 sm:py-0 min-h-0 overflow-y-auto" :class="{ 'hidden lg:block': activeMobileTab !== 'puzzle' }">
+      <div
+        class="flex-1 px-3 sm:px-6 py-2 sm:py-0 min-h-0 overflow-hidden lg:overflow-y-auto"
+        :class="{ 'hidden lg:block': activeMobileTab !== 'puzzle' }"
+      >
         <!-- LEFT: board -->
         <div class="glass-card p-3 animate-fade-in overflow-visible">
           <!-- Status bar: Lives, Coins-->
