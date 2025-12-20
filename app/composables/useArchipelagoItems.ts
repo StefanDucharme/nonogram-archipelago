@@ -47,16 +47,45 @@ export const AP_ITEMS = {
 // LOCATION IDS - Checks sent TO Archipelago
 // ============================================
 export const AP_LOCATIONS = {
-  // Milestone checks
-  FIRST_LINE_COMPLETED: 9000001,
-  // Base ID for puzzle completion (add puzzle number to get location ID)
-  // e.g., Puzzle 1 = 9001001, Puzzle 2 = 9001002, etc.
-  PUZZLE_COMPLETE_BASE: 9001000,
+  // Coin milestones
+  OBTAIN_50_COINS: 9000001,
+  OBTAIN_100_COINS: 9000002,
+
+  // 5x5 milestones
+  FIRST_LINE_5X5: 9000003,
+
+  // Difficulty unlocks
+  UNLOCK_10X10: 9000004,
+  FIRST_LINE_10X10: 9000005,
+  UNLOCK_15X15: 9000006,
+  FIRST_LINE_15X15: 9000007,
+  UNLOCK_20X20: 9000008,
+  FIRST_LINE_20X20: 9000009,
+
+  // Puzzle completion base IDs (add puzzle count to get location ID)
+  PUZZLE_5X5_BASE: 9001000, // 9001001-9001026
+  PUZZLE_10X10_BASE: 9002000, // 9002001-9002015
+  PUZZLE_15X15_BASE: 9003000, // 9003001-9003010
+  PUZZLE_20X20_BASE: 9004000, // 9004001-9004005
 } as const;
 
-// Helper to get location ID for a specific puzzle number
-export function getPuzzleLocationId(puzzleNumber: number): number {
-  return AP_LOCATIONS.PUZZLE_COMPLETE_BASE + puzzleNumber;
+// Puzzle completion counts per difficulty
+export const PUZZLE_COUNTS = {
+  '5x5': 26,
+  '10x10': 15,
+  '15x15': 10,
+  '20x20': 5,
+} as const;
+
+// Helper to get location ID for puzzle completions by difficulty
+export function getPuzzleLocationId(difficulty: '5x5' | '10x10' | '15x15' | '20x20', count: number): number {
+  const baseIds = {
+    '5x5': AP_LOCATIONS.PUZZLE_5X5_BASE,
+    '10x10': AP_LOCATIONS.PUZZLE_10X10_BASE,
+    '15x15': AP_LOCATIONS.PUZZLE_15X15_BASE,
+    '20x20': AP_LOCATIONS.PUZZLE_20X20_BASE,
+  };
+  return baseIds[difficulty] + count;
 }
 
 // Location registry for UI display
@@ -65,17 +94,56 @@ export interface LocationDefinition {
   name: string;
   description: string;
   threshold?: number; // For puzzle checks
+  difficulty?: string; // For puzzle checks
 }
 
 // Generate location registry dynamically
 export const LOCATION_REGISTRY: LocationDefinition[] = [
-  { id: AP_LOCATIONS.FIRST_LINE_COMPLETED, name: 'First Line', description: 'Complete your first row or column' },
-  // Add entries for puzzles 1-64
-  ...Array.from({ length: 64 }, (_, i) => ({
-    id: getPuzzleLocationId(i + 1),
-    name: `Puzzle ${i + 1}`,
-    description: `Complete puzzle ${i + 1}`,
+  // Coin milestones
+  { id: AP_LOCATIONS.OBTAIN_50_COINS, name: 'Obtain 50 Coins', description: 'Accumulate 50 total coins' },
+  { id: AP_LOCATIONS.OBTAIN_100_COINS, name: 'Obtain 100 Coins', description: 'Accumulate 100 total coins' },
+
+  // 5x5 checks
+  { id: AP_LOCATIONS.FIRST_LINE_5X5, name: 'First Line (5x5)', description: 'Complete your first row or column in a 5x5 puzzle' },
+  ...Array.from({ length: PUZZLE_COUNTS['5x5'] }, (_, i) => ({
+    id: getPuzzleLocationId('5x5', i + 1),
+    name: `Complete ${i + 1} 5x5 Puzzle${i > 0 ? 's' : ''}`,
+    description: `Complete ${i + 1} 5x5 puzzle${i > 0 ? 's' : ''}`,
     threshold: i + 1,
+    difficulty: '5x5',
+  })),
+
+  // 10x10 checks
+  { id: AP_LOCATIONS.UNLOCK_10X10, name: 'Unlock 10x10', description: 'Increase difficulty to 10x10' },
+  { id: AP_LOCATIONS.FIRST_LINE_10X10, name: 'First Line (10x10)', description: 'Complete your first row or column in a 10x10 puzzle' },
+  ...Array.from({ length: PUZZLE_COUNTS['10x10'] }, (_, i) => ({
+    id: getPuzzleLocationId('10x10', i + 1),
+    name: `Complete ${i + 1} 10x10 Puzzle${i > 0 ? 's' : ''}`,
+    description: `Complete ${i + 1} 10x10 puzzle${i > 0 ? 's' : ''}`,
+    threshold: i + 1,
+    difficulty: '10x10',
+  })),
+
+  // 15x15 checks
+  { id: AP_LOCATIONS.UNLOCK_15X15, name: 'Unlock 15x15', description: 'Increase difficulty to 15x15' },
+  { id: AP_LOCATIONS.FIRST_LINE_15X15, name: 'First Line (15x15)', description: 'Complete your first row or column in a 15x15 puzzle' },
+  ...Array.from({ length: PUZZLE_COUNTS['15x15'] }, (_, i) => ({
+    id: getPuzzleLocationId('15x15', i + 1),
+    name: `Complete ${i + 1} 15x15 Puzzle${i > 0 ? 's' : ''}`,
+    description: `Complete ${i + 1} 15x15 puzzle${i > 0 ? 's' : ''}`,
+    threshold: i + 1,
+    difficulty: '15x15',
+  })),
+
+  // 20x20 checks
+  { id: AP_LOCATIONS.UNLOCK_20X20, name: 'Unlock 20x20', description: 'Increase difficulty to 20x20' },
+  { id: AP_LOCATIONS.FIRST_LINE_20X20, name: 'First Line (20x20)', description: 'Complete your first row or column in a 20x20 puzzle' },
+  ...Array.from({ length: PUZZLE_COUNTS['20x20'] }, (_, i) => ({
+    id: getPuzzleLocationId('20x20', i + 1),
+    name: `Complete ${i + 1} 20x20 Puzzle${i > 0 ? 's' : ''}`,
+    description: `Complete ${i + 1} 20x20 puzzle${i > 0 ? 's' : ''}`,
+    threshold: i + 1,
+    difficulty: '20x20',
   })),
 ];
 
@@ -195,8 +263,23 @@ export function useArchipelagoItems() {
 
   // Check/Location tracking
   const completedChecks = ref<Set<number>>(new Set()); // Location IDs that have been sent
-  const puzzlesCompleted = ref(0); // Total puzzles completed
-  const firstLineCompleted = ref(false); // Has any line been completed ever
+  const puzzlesCompleted = reactive({
+    '5x5': 0,
+    '10x10': 0,
+    '15x15': 0,
+    '20x20': 0,
+  }); // Puzzles completed per difficulty
+  const firstLineCompleted = reactive({
+    '5x5': false,
+    '10x10': false,
+    '15x15': false,
+    '20x20': false,
+  }); // First line completed per difficulty
+  const totalCoinsEarned = ref(0); // Total coins ever earned (for milestone tracking)
+  const coinMilestones = reactive({
+    50: false,
+    100: false,
+  }); // Coin milestones reached
 
   // Track received items for the UI
   const receivedItems = ref<number[]>([]);
@@ -212,16 +295,18 @@ export function useArchipelagoItems() {
   }
 
   // Receive an item from Archipelago
-  function receiveItem(itemId: number): string | null {
+  // Returns item name and any location checks that should be sent as a result
+  function receiveItem(itemId: number): { itemName: string | null; checks: number[] } {
     // Don't process duplicates (except for stackable items)
     const isStackable =
       itemId === AP_ITEMS.EXTRA_LIFE || itemId === AP_ITEMS.UNLOCK_HINTS || itemId === AP_ITEMS.COINS_BUNDLE || itemId === AP_ITEMS.SOLVE_RANDOM_CELL;
     if (!isStackable && receivedItems.value.includes(itemId)) {
-      return null;
+      return { itemName: null, checks: [] };
     }
 
     receivedItems.value.push(itemId);
     const itemDef = getItemDefinition(itemId);
+    let newChecks: number[] = [];
 
     // Apply the unlock
     switch (itemId) {
@@ -249,17 +334,18 @@ export function useArchipelagoItems() {
         currentLives.value = Math.min(currentLives.value + 1, maxLives.value);
         break;
       case AP_ITEMS.COINS_BUNDLE:
-        coins.value += coinsPerBundle.value;
+        // Use addCoins to track total earned and trigger milestones
+        newChecks = addCoins(coinsPerBundle.value);
         break;
       case AP_ITEMS.SOLVE_RANDOM_CELL:
         randomCellSolves.value += 1;
         break;
       default:
         console.warn(`Unknown item received: ${itemId}`);
-        return null;
+        return { itemName: null, checks: [] };
     }
 
-    return itemDef?.name ?? `Item #${itemId}`;
+    return { itemName: itemDef?.name ?? `Item #${itemId}`, checks: newChecks };
   }
 
   // Enable Archipelago mode (lock everything)
@@ -281,8 +367,17 @@ export function useArchipelagoItems() {
     tempHintReveals.value = 0;
     currentDifficulty.value = 5; // Reset to easy (5x5)
     completedChecks.value = new Set();
-    puzzlesCompleted.value = 0;
-    firstLineCompleted.value = false;
+    puzzlesCompleted['5x5'] = 0;
+    puzzlesCompleted['10x10'] = 0;
+    puzzlesCompleted['15x15'] = 0;
+    puzzlesCompleted['20x20'] = 0;
+    firstLineCompleted['5x5'] = false;
+    firstLineCompleted['10x10'] = false;
+    firstLineCompleted['15x15'] = false;
+    firstLineCompleted['20x20'] = false;
+    totalCoinsEarned.value = 0;
+    coinMilestones[50] = false;
+    coinMilestones[100] = false;
   }
 
   // Disable Archipelago mode (unlock everything for free play)
@@ -313,8 +408,34 @@ export function useArchipelagoItems() {
   }
 
   // Add coins (for completing rows/columns)
-  function addCoins(amount: number) {
+  function addCoins(amount: number): number[] {
     coins.value += amount;
+    totalCoinsEarned.value += amount;
+
+    console.log('[DEBUG addCoins] amount:', amount, 'totalCoinsEarned:', totalCoinsEarned.value, 'archipelagoMode:', archipelagoMode.value);
+
+    // Check for coin milestones
+    const newChecks: number[] = [];
+    if (!coinMilestones[50] && totalCoinsEarned.value >= 50) {
+      console.log('[DEBUG addCoins] Hit 50 coin milestone!');
+      coinMilestones[50] = true;
+      if (archipelagoMode.value && !completedChecks.value.has(AP_LOCATIONS.OBTAIN_50_COINS)) {
+        console.log('[DEBUG addCoins] Adding 50 coin check:', AP_LOCATIONS.OBTAIN_50_COINS);
+        completedChecks.value.add(AP_LOCATIONS.OBTAIN_50_COINS);
+        newChecks.push(AP_LOCATIONS.OBTAIN_50_COINS);
+      }
+    }
+    if (!coinMilestones[100] && totalCoinsEarned.value >= 100) {
+      console.log('[DEBUG addCoins] Hit 100 coin milestone!');
+      coinMilestones[100] = true;
+      if (archipelagoMode.value && !completedChecks.value.has(AP_LOCATIONS.OBTAIN_100_COINS)) {
+        console.log('[DEBUG addCoins] Adding 100 coin check:', AP_LOCATIONS.OBTAIN_100_COINS);
+        completedChecks.value.add(AP_LOCATIONS.OBTAIN_100_COINS);
+        newChecks.push(AP_LOCATIONS.OBTAIN_100_COINS);
+      }
+    }
+    console.log('[DEBUG addCoins] returning newChecks:', newChecks);
+    return newChecks;
   }
 
   // Spend coins (returns true if successful, false if not enough)
@@ -459,39 +580,69 @@ export function useArchipelagoItems() {
   }
 
   // Buy difficulty increase
-  function buyDifficultyIncrease(): boolean {
+  function buyDifficultyIncrease(): { success: boolean; checks: number[] } {
     if (spendCoins(DIFFICULTY_INCREASE_COST.value)) {
       currentDifficulty.value += DIFFICULTY_STEP;
-      return true;
+
+      const newChecks: number[] = [];
+      if (archipelagoMode.value) {
+        // Check which difficulty unlock this corresponds to
+        if (currentDifficulty.value === 10 && !completedChecks.value.has(AP_LOCATIONS.UNLOCK_10X10)) {
+          completedChecks.value.add(AP_LOCATIONS.UNLOCK_10X10);
+          newChecks.push(AP_LOCATIONS.UNLOCK_10X10);
+        } else if (currentDifficulty.value === 15 && !completedChecks.value.has(AP_LOCATIONS.UNLOCK_15X15)) {
+          completedChecks.value.add(AP_LOCATIONS.UNLOCK_15X15);
+          newChecks.push(AP_LOCATIONS.UNLOCK_15X15);
+        } else if (currentDifficulty.value === 20 && !completedChecks.value.has(AP_LOCATIONS.UNLOCK_20X20)) {
+          completedChecks.value.add(AP_LOCATIONS.UNLOCK_20X20);
+          newChecks.push(AP_LOCATIONS.UNLOCK_20X20);
+        }
+      }
+
+      return { success: true, checks: newChecks };
     }
-    return false;
+    return { success: false, checks: [] };
   }
 
-  // Mark first line as completed and return the location ID if it's a new check
-  function markFirstLineCompleted(): number | null {
+  // Mark first line as completed for a specific difficulty and return the location ID if it's a new check
+  function markFirstLineCompleted(difficulty: '5x5' | '10x10' | '15x15' | '20x20'): number | null {
     if (!archipelagoMode.value) return null;
-    if (firstLineCompleted.value) return null;
+    if (firstLineCompleted[difficulty]) return null;
 
-    firstLineCompleted.value = true;
-    if (!completedChecks.value.has(AP_LOCATIONS.FIRST_LINE_COMPLETED)) {
-      completedChecks.value.add(AP_LOCATIONS.FIRST_LINE_COMPLETED);
-      return AP_LOCATIONS.FIRST_LINE_COMPLETED;
+    firstLineCompleted[difficulty] = true;
+
+    const locationIds = {
+      '5x5': AP_LOCATIONS.FIRST_LINE_5X5,
+      '10x10': AP_LOCATIONS.FIRST_LINE_10X10,
+      '15x15': AP_LOCATIONS.FIRST_LINE_15X15,
+      '20x20': AP_LOCATIONS.FIRST_LINE_20X20,
+    };
+
+    const locationId = locationIds[difficulty];
+    if (!completedChecks.value.has(locationId)) {
+      completedChecks.value.add(locationId);
+      return locationId;
     }
     return null;
   }
 
   // Mark puzzle as completed and return any new location IDs that should be sent
-  function markPuzzleCompleted(): number[] {
+  function markPuzzleCompleted(difficulty: '5x5' | '10x10' | '15x15' | '20x20'): number[] {
     if (!archipelagoMode.value) return [];
 
-    puzzlesCompleted.value += 1;
+    puzzlesCompleted[difficulty] += 1;
     const newChecks: number[] = [];
 
-    // Each puzzle completion is its own check (Puzzle 1, Puzzle 2, etc.)
-    const locationId = getPuzzleLocationId(puzzlesCompleted.value);
-    if (!completedChecks.value.has(locationId)) {
-      completedChecks.value.add(locationId);
-      newChecks.push(locationId);
+    // Check if this completion unlocks a new check
+    const count = puzzlesCompleted[difficulty];
+    const maxCount = PUZZLE_COUNTS[difficulty];
+
+    if (count <= maxCount) {
+      const locationId = getPuzzleLocationId(difficulty, count);
+      if (!completedChecks.value.has(locationId)) {
+        completedChecks.value.add(locationId);
+        newChecks.push(locationId);
+      }
     }
 
     return newChecks;
@@ -538,6 +689,8 @@ export function useArchipelagoItems() {
     startingCoins,
     coinsPerBundle,
     unlimitedCoins,
+    totalCoinsEarned,
+    coinMilestones,
 
     // Hints
     startingHintReveals,
@@ -563,6 +716,7 @@ export function useArchipelagoItems() {
     puzzlesCompleted,
     firstLineCompleted,
     LOCATION_REGISTRY,
+    PUZZLE_COUNTS,
 
     // Item registry
     ITEM_REGISTRY,
@@ -592,6 +746,7 @@ export function useArchipelagoItems() {
     buyDifficultyIncrease,
     markFirstLineCompleted,
     markPuzzleCompleted,
+    getPuzzleLocationId,
 
     // Computed
     lockedItems,
