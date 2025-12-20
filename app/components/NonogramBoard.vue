@@ -68,18 +68,34 @@
   const colDepth = computed(() => Math.max(1, ...props.colClues.map((c) => c.length)));
   const rowDepth = computed(() => Math.max(1, ...props.rowClues.map((r) => r.length)));
 
-  // Scale MAX_BOARD_PX based on screen size
-  const MAX_BOARD_PX = computed(() => {
-    if (windowWidth.value < 640) {
-      // Mobile: use most of the screen width (with some padding)
-      return Math.min(windowWidth.value - 80, 400);
-    }
-    return 520;
-  });
+  // Minimum cell size for usability (only enforced for large grids that need scrolling)
+  const MIN_CELL_SIZE = 24;
 
+  // Calculate available space and ideal cell size
   const cellSize = computed(() => {
     const count = Math.max(props.rows, props.cols);
-    return Math.max(14, Math.floor(MAX_BOARD_PX.value / count));
+
+    if (windowWidth.value >= 640) {
+      // Desktop: max 520px board, min 14px cells
+      const idealSize = Math.floor(520 / count);
+      return Math.max(14, Math.min(idealSize, 45));
+    }
+
+    // Mobile: try to fit grid on screen first
+    // Available width: screen - padding (48px for px-3 on each side + glass-card p-3)
+    // Need to also account for row clues (roughly rowDepth * 12px)
+    const rowClueWidth = rowDepth.value * 12;
+    const availableWidth = windowWidth.value - 48 - rowClueWidth - 16; // 16 for gaps
+    const idealSize = Math.floor(availableWidth / props.cols);
+
+    // For small grids (≤10), use larger cells - they should fit comfortably
+    if (count <= 10) {
+      // Use larger cells, cap at 42px
+      return Math.max(28, Math.min(idealSize, 42));
+    }
+
+    // For larger grids, use minimum cell size and allow scrolling
+    return Math.max(MIN_CELL_SIZE, Math.min(idealSize, 32));
   });
 
   const groupSize = 5;
@@ -251,31 +267,31 @@
 </script>
 
 <template>
-  <div class="select-none touch-none" :style="{ '--cell': `${cellSize}px` }">
+  <div class="select-none" :style="{ '--cell': `${cellSize}px`, display: 'inline-block', minWidth: 'max-content' }">
     <!-- Whole thing is a 2x2 grid: [corner | col clues] / [row clues | board] -->
     <div
       class="grid gap-1 sm:gap-2"
       :style="{
-        gridTemplateColumns: `auto 1fr`,
-        gridTemplateRows: `auto 1fr`,
+        gridTemplateColumns: `auto auto`,
+        gridTemplateRows: `auto auto`,
       }"
     >
       <!-- corner: sized by rowDepth and colDepth so clue grids align -->
       <div
         class="bg-neutral-950/40 border border-neutral-900 invisible"
         :style="{
-          width: `calc(${rowDepth} * 1.25rem)`,
-          height: `calc(${colDepth} * 1.1rem)`,
+          width: `calc(${rowDepth} * max(16px, ${cellSize * 0.6}px))`,
+          height: `calc(${colDepth} * max(14px, ${cellSize * 0.5}px))`,
         }"
       />
 
       <!-- column clues (grid: rows=colDepth, cols=cols) -->
-      <div class="overflow-hidden">
+      <div>
         <div
           class="grid"
           :style="{
             gridTemplateColumns: `repeat(${cols}, var(--cell))`,
-            gridTemplateRows: `repeat(${colDepth}, calc(var(--cell) * 0.45))`,
+            gridTemplateRows: `repeat(${colDepth}, minmax(14px, calc(var(--cell) * 0.5)))`,
           }"
         >
           <template v-for="i in colDepth" :key="`row-${i}`">
@@ -286,6 +302,7 @@
               :class="
                 (() => {
                   const clueArray = colClues[c - 1];
+                  if (!clueArray) return 'text-neutral-300';
                   const clueIndex = i - 1 - (colDepth - clueArray.length);
                   if (clueIndex >= 0 && clueIndex < clueArray.length) {
                     const isComplete = props.greyCompletedHints && props.isColClueComplete?.(c - 1, clueIndex);
@@ -299,6 +316,7 @@
               {{
                 (() => {
                   const clueArray = colClues[c - 1];
+                  if (!clueArray) return '';
                   const clueIndex = i - 1 - (colDepth - clueArray.length);
                   if (clueIndex >= 0 && clueIndex < clueArray.length) {
                     const clueValue = clueArray[clueIndex];
@@ -320,17 +338,18 @@
           class="grid"
           :style="{
             gridTemplateRows: `repeat(${rows}, var(--cell))`,
-            gridTemplateColumns: `repeat(${rowDepth}, calc(var(--cell) * 0.45))`,
+            gridTemplateColumns: `repeat(${rowDepth}, minmax(16px, calc(var(--cell) * 0.6)))`,
           }"
         >
           <template v-for="r in rows" :key="`row-${r}`">
             <div
               v-for="i in rowDepth"
               :key="`row-${r}-c-${i}`"
-              class="flex items-center justify-end pr-1 text-[11px] leading-none"
+              class="flex items-center justify-end pr-1.5 text-[11px] leading-none"
               :class="
                 (() => {
                   const clueArray = rowClues[r - 1];
+                  if (!clueArray) return 'text-neutral-300';
                   const clueIndex = i - 1 - (rowDepth - clueArray.length);
                   if (clueIndex >= 0 && clueIndex < clueArray.length) {
                     const isComplete = props.greyCompletedHints && props.isRowClueComplete?.(r - 1, clueIndex);
@@ -344,6 +363,7 @@
               {{
                 (() => {
                   const clueArray = rowClues[r - 1];
+                  if (!clueArray) return '';
                   const clueIndex = i - 1 - (rowDepth - clueArray.length);
                   if (clueIndex >= 0 && clueIndex < clueArray.length) {
                     const clueValue = clueArray[clueIndex];
@@ -422,7 +442,9 @@
                 (() => {
                   const r = Math.floor((idx - 1) / cols);
                   const c = (idx - 1) % cols;
-                  const v = player[r][c];
+                  const playerRow = player[r];
+                  if (!playerRow) return 'bg-transparent';
+                  const v = playerRow[c];
                   const sel = selected && selected.r === r && selected.c === c;
 
                   return [
@@ -445,7 +467,7 @@
               @pointerup="(e) => onPointerUp(e as PointerEvent)"
             >
               <span
-                v-if="player[Math.floor((idx - 1) / cols)][(idx - 1) % cols] === 'x' || shouldAutoX(Math.floor((idx - 1) / cols), (idx - 1) % cols)"
+                v-if="player[Math.floor((idx - 1) / cols)]?.[(idx - 1) % cols] === 'x' || shouldAutoX(Math.floor((idx - 1) / cols), (idx - 1) % cols)"
                 class="text-sm font-bold"
                 :class="
                   (() => {

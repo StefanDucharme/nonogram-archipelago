@@ -375,13 +375,35 @@
 
   /** Keep rows & cols equal */
   const lockSize = ref(true);
+
+  // Computed values for the inputs to ensure proper reactivity
+  const rowsInput = computed({
+    get: () => rows.value,
+    set: (val: number) => {
+      const clamped = clampInt(val, 5, 50);
+      rows.value = clamped;
+      if (lockSize.value) cols.value = clamped;
+      // Regenerate puzzle with new dimensions
+      newRandom(rows.value, cols.value);
+    },
+  });
+
+  const colsInput = computed({
+    get: () => cols.value,
+    set: (val: number) => {
+      const clamped = clampInt(val, 5, 50);
+      cols.value = clamped;
+      if (lockSize.value) rows.value = clamped;
+      // Regenerate puzzle with new dimensions
+      newRandom(rows.value, cols.value);
+    },
+  });
+
   function setRows(next: number) {
-    rows.value = next;
-    if (lockSize.value) cols.value = next;
+    rowsInput.value = next;
   }
   function setCols(next: number) {
-    cols.value = next;
-    if (lockSize.value) rows.value = next;
+    colsInput.value = next;
   }
 
   /** If user toggles lock ON, immediately equalize */
@@ -538,11 +560,11 @@
       </button>
     </div>
 
-    <div class="flex flex-col lg:flex-row flex-1 min-h-0">
+    <div class="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
       <!-- Main content area (grid) - hidden on mobile when not on puzzle tab -->
-      <div class="flex-1 px-3 sm:px-6 py-2 sm:py-0 overflow-auto min-h-0" :class="{ 'hidden lg:block': activeMobileTab !== 'puzzle' }">
+      <div class="flex-1 px-3 sm:px-6 py-2 sm:py-0 min-h-0 overflow-y-auto" :class="{ 'hidden lg:block': activeMobileTab !== 'puzzle' }">
         <!-- LEFT: board -->
-        <div class="glass-card p-3 animate-fade-in">
+        <div class="glass-card p-3 animate-fade-in overflow-visible">
           <!-- Status bar: Lives, Coins-->
           <div class="flex flex-wrap items-center justify-between gap-2 mb-1 pb-1 border-b border-neutral-700/50">
             <div class="flex flex-wrap items-center gap-3 sm:gap-6">
@@ -606,9 +628,12 @@
             </div>
           </div>
 
-          <div class="flex flex-col sm:flex-row gap-4 sm:gap-6 items-center sm:items-start">
-            <!-- Grid -->
-            <div class="shrink-0">
+          <div class="flex flex-col sm:flex-row gap-4 sm:gap-6 items-center justify-center sm:items-start sm:justify-start">
+            <!-- Grid - scroll container for large grids -->
+            <div
+              class="shrink-0 overflow-auto lg:overflow-auto grid-scroll-container"
+              style="max-width: calc(100vw - 48px); max-height: calc(100dvh - 140px)"
+            >
               <NonogramBoard
                 v-if="isClientReady"
                 :rows="rows"
@@ -707,7 +732,7 @@
 
       <!-- RIGHT: sidebar attached to right side (hidden on mobile when puzzle tab active) -->
       <div
-        class="w-full lg:w-1/3 shrink-0 bg-neutral-900/95 backdrop-blur-lg border-t lg:border-t-0 lg:border-l border-neutral-700 flex flex-col lg:flex-row min-h-0 flex-1 lg:flex-initial overflow-hidden"
+        class="w-full lg:w-1/3 shrink-0 bg-neutral-900/95 backdrop-blur-lg border-t lg:border-t-0 lg:border-l border-neutral-700 flex flex-col lg:flex-row min-h-0 flex-1 lg:flex-initial"
         :class="{ 'hidden lg:flex': activeMobileTab === 'puzzle' }"
       >
         <!-- Active Abilities Panel - hidden on mobile, shown on desktop -->
@@ -772,7 +797,7 @@
         </div>
 
         <!-- Right side: tabs and content -->
-        <div class="flex-1 flex flex-col min-w-0">
+        <div class="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           <!-- tab bar (desktop only - mobile uses top tab bar) -->
           <div class="hidden lg:flex border-b border-neutral-700/50 shrink-0 overflow-x-auto">
             <button class="tab-button whitespace-nowrap" :class="{ active: activeTab === 'archipelago' }" @click="activeTab = 'archipelago'">
@@ -787,7 +812,7 @@
           </div>
 
           <!-- tab content - on mobile, show based on activeMobileTab; on desktop, show based on activeTab -->
-          <div class="p-4 flex-1 overflow-auto">
+          <div class="p-4 flex-1 overflow-y-auto min-h-0">
             <!-- SETTINGS -->
             <div v-if="isTabVisible('settings')" class="space-y-6">
               <div class="flex items-center gap-3 mb-6">
@@ -956,7 +981,10 @@
                 <!-- Puzzle Dimensions -->
                 <section class="space-y-4">
                   <h3 class="section-heading">Puzzle Dimensions</h3>
-                  <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
+                  <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4" :class="{ 'opacity-60': items.archipelagoMode.value }">
+                    <div v-if="items.archipelagoMode.value" class="text-xs text-amber-300/70 mb-2">
+                      ⚠️ Dimensions are controlled by Archipelago difficulty
+                    </div>
                     <div class="grid grid-cols-2 gap-4">
                       <div class="space-y-2">
                         <label for="rows" class="block text-xs font-medium text-neutral-300">Rows</label>
@@ -966,8 +994,8 @@
                           min="5"
                           max="50"
                           class="input-field"
-                          :value="rows"
-                          @change="(e:any) => setRows(clampInt(e.target.value, 5, 50))"
+                          v-model.number="rowsInput"
+                          :disabled="items.archipelagoMode.value"
                         />
                       </div>
                       <div class="space-y-2">
@@ -978,15 +1006,14 @@
                           min="5"
                           max="50"
                           class="input-field"
-                          :value="cols"
-                          :disabled="lockSize"
-                          @change="(e:any) => setCols(clampInt(e.target.value, 5, 50))"
+                          v-model.number="colsInput"
+                          :disabled="lockSize || items.archipelagoMode.value"
                         />
                       </div>
                     </div>
 
-                    <label class="flex items-center gap-3 cursor-pointer group">
-                      <input type="checkbox" v-model="lockSize" class="checkbox-field" />
+                    <label class="flex items-center gap-3 group" :class="items.archipelagoMode.value ? 'cursor-not-allowed' : 'cursor-pointer'">
+                      <input type="checkbox" v-model="lockSize" :disabled="items.archipelagoMode.value" class="checkbox-field" />
                       <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">Lock aspect ratio (square puzzles) </span>
                     </label>
                   </div>
@@ -994,7 +1021,8 @@
                 <!-- Puzzle Generation -->
                 <section class="space-y-4">
                   <h3 class="section-heading">Puzzle Generation</h3>
-                  <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4">
+                  <div class="space-y-4 bg-neutral-800/30 rounded-sm p-4" :class="{ 'opacity-60': items.archipelagoMode.value }">
+                    <div v-if="items.archipelagoMode.value" class="text-xs text-amber-300/70 mb-2">⚠️ Fill density is controlled by Archipelago</div>
                     <div class="space-y-3">
                       <div class="flex items-center justify-between">
                         <label for="fill-rate" class="text-xs font-medium text-neutral-300"> Fill Density </label>
@@ -1004,7 +1032,16 @@
                           </span>
                         </div>
                       </div>
-                      <input id="fill-rate" type="range" min="0.2" max="0.7" step="0.01" v-model.number="fillRate" class="slider w-full" />
+                      <input
+                        id="fill-rate"
+                        type="range"
+                        min="0.2"
+                        max="0.7"
+                        step="0.01"
+                        v-model.number="fillRate"
+                        :disabled="items.archipelagoMode.value"
+                        class="slider w-full"
+                      />
                       <div class="flex justify-between text-2xs text-neutral-500">
                         <span>Sparse (20%)</span>
                         <span>Dense (70%)</span>
