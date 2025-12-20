@@ -83,6 +83,8 @@
   const greyCompletedHints = ref(true);
   const showDebugGrid = ref(false);
   const dragPainting = ref(true);
+  // Mobile cell mode toggle: 'fill' or 'x'
+  const mobileCellMode = ref<'fill' | 'x'>('fill');
   const coinsPerLine = ref(1); // Coins earned per completed row/column
 
   // Computed values that combine user preferences with unlock state
@@ -90,7 +92,8 @@
   const canPlaceX = computed(() => items.unlocks.placeX); // X placement requires unlock
   const effectiveAutoX = computed(() => autoX.value && items.unlocks.autoX);
   const effectiveGreyHints = computed(() => greyCompletedHints.value && items.unlocks.greyHints);
-  const effectiveDragPainting = computed(() => dragPainting.value && items.unlocks.dragPaint);
+  // On mobile, disable drag painting to prevent grid movement issues
+  const effectiveDragPainting = computed(() => !isMobile.value && dragPainting.value && items.unlocks.dragPaint);
   const gameOver = computed(() => !items.unlimitedLives.value && items.currentLives.value <= 0);
 
   // Filter out consumables from unlocked/locked items display
@@ -594,6 +597,30 @@
                 <span class="text-xs sm:text-sm text-neutral-400">Coins:</span>
                 <span class="text-base sm:text-lg font-bold text-amber-400">🪙 {{ items.coins.value }}</span>
                 <span v-if="items.unlimitedCoins.value" class="text-xs text-neutral-500">(∞)</span>
+                <!-- Mobile fill/X toggle -->
+                <div v-if="isMobile" class="ml-2 flex items-center gap-1">
+                  <span class="text-xs text-neutral-400">Mode:</span>
+                  <button
+                    :class="[
+                      'px-2 py-1 rounded-l border border-neutral-700',
+                      mobileCellMode === 'fill' ? 'bg-lime-600 text-white' : 'bg-neutral-800 text-neutral-300',
+                    ]"
+                    @click="mobileCellMode = 'fill'"
+                    aria-label="Fill mode"
+                  >
+                    ■
+                  </button>
+                  <button
+                    :class="[
+                      'px-2 py-1 rounded-r border border-l-0 border-neutral-700',
+                      mobileCellMode === 'x' ? 'bg-red-600 text-white' : 'bg-neutral-800 text-neutral-300',
+                    ]"
+                    @click="mobileCellMode = 'x'"
+                    aria-label="X mode"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -652,6 +679,7 @@
                   :drag-painting="effectiveDragPainting"
                   :is-row-hint-revealed="items.isRowHintRevealed"
                   :is-col-hint-revealed="items.isColHintRevealed"
+                  :mobile-cell-mode="mobileCellMode"
                   @cell="handleCellChange"
                 />
                 <div v-else class="flex items-center justify-center" style="width: 300px; height: 300px">

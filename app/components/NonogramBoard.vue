@@ -18,6 +18,7 @@
     dragPainting?: boolean;
     isRowHintRevealed?: (rowIndex: number) => boolean;
     isColHintRevealed?: (colIndex: number) => boolean;
+    mobileCellMode?: 'fill' | 'x'; // For mobile mode toggle
   }>();
 
   const emit = defineEmits<{
@@ -114,25 +115,26 @@
     // Only left click sets "selected"
     if (e.button === 0) selected.value = { r, c };
 
-    const erase = e.shiftKey;
+    // On mobile, use the toggle for mode
     let mode: 'fill' | 'x' | 'erase';
+    const isMobile = window.innerWidth < 1024;
+    if (isMobile && props.mobileCellMode) {
+      mode = props.mobileCellMode;
+    } else {
+      const erase = e.shiftKey;
+      if (erase) mode = 'erase';
+      else if (e.button === 2) mode = 'x';
+      else mode = 'fill';
+    }
 
-    if (erase) mode = 'erase';
-    else if (e.button === 2) mode = 'x';
-    else mode = 'fill';
-
-    // Emit the cell change
-    emit('cell', r, c, mode);
-
-    // Start drag painting if enabled
+    // Start drag painting if enabled (desktop only)
     if (props.dragPainting) {
-      console.log('Starting drag painting with mode:', mode);
       isDragging.value = true;
       dragMode.value = mode;
       dragStartCell.value = { r, c };
-    } else {
-      console.log('Drag painting disabled, dragPainting:', props.dragPainting);
     }
+
+    emit('cell', r, c, mode);
   }
 
   function onPointerMove(e: PointerEvent, r: number, c: number) {
