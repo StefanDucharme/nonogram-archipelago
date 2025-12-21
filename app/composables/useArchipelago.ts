@@ -54,7 +54,14 @@ export function useArchipelago() {
         // item.id is the item ID from the AP world
         const itemName = handleItemReceived(item.id);
         if (itemName) {
-          addLogMessage(`Received: ${itemName} from ${item.sender.name}`, 'item');
+          // Format: NonogramPlayer2 sent Extra Cooldown Trap to Player2 (Complete 2 5x5 Puzzles)
+          const sender = item.sender?.name || 'Unknown';
+          const receiver = slot.value;
+          let extra = '';
+          if (item.location && item.location.name) {
+            extra = ` (${item.location.name})`;
+          }
+          addLogMessage(`${sender} sent ${itemName} to ${receiver}${extra}`.replace(/ ,/g, ''), 'item');
         }
       }
     });

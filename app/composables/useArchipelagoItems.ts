@@ -580,13 +580,21 @@ export function useArchipelagoItems() {
   }
 
   // Buy difficulty increase
-  function buyDifficultyIncrease(): { success: boolean; checks: number[] } {
+  function buyDifficultyIncrease(): { success: boolean; checks: number[]; reason?: string } {
+    // Only allow increasing if all puzzles for current difficulty are completed
+    const difficulties = [5, 10, 15, 20];
+    const idx = difficulties.indexOf(currentDifficulty.value);
+    if (idx < 0 || idx === difficulties.length - 1) {
+      return { success: false, checks: [], reason: 'Already at max difficulty.' };
+    }
+    const diffStr = `${currentDifficulty.value}x${currentDifficulty.value}`;
+    if (puzzlesCompleted[diffStr] < PUZZLE_COUNTS[diffStr]) {
+      return { success: false, checks: [], reason: `Complete all ${diffStr} puzzles first.` };
+    }
     if (spendCoins(DIFFICULTY_INCREASE_COST.value)) {
       currentDifficulty.value += DIFFICULTY_STEP;
-
       const newChecks: number[] = [];
       if (archipelagoMode.value) {
-        // Check which difficulty unlock this corresponds to
         if (currentDifficulty.value === 10 && !completedChecks.value.has(AP_LOCATIONS.UNLOCK_10X10)) {
           completedChecks.value.add(AP_LOCATIONS.UNLOCK_10X10);
           newChecks.push(AP_LOCATIONS.UNLOCK_10X10);
@@ -598,10 +606,20 @@ export function useArchipelagoItems() {
           newChecks.push(AP_LOCATIONS.UNLOCK_20X20);
         }
       }
-
       return { success: true, checks: newChecks };
     }
-    return { success: false, checks: [] };
+    return { success: false, checks: [], reason: 'Not enough coins.' };
+  }
+
+  // Allow decreasing difficulty (shop)
+  function buyDifficultyDecrease(): { success: boolean; reason?: string } {
+    const difficulties = [5, 10, 15, 20];
+    const idx = difficulties.indexOf(currentDifficulty.value);
+    if (idx <= 0) {
+      return { success: false, reason: 'Already at minimum difficulty.' };
+    }
+    currentDifficulty.value -= DIFFICULTY_STEP;
+    return { success: true };
   }
 
   // Mark first line as completed for a specific difficulty and return the location ID if it's a new check
