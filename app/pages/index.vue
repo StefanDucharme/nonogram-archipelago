@@ -1,8 +1,8 @@
 <script setup lang="ts">
   // Compute the latest item message (sent or received)
   const latestItemMessage = computed(() => {
-    const itemsOnly = messageLog.value.filter((m) => m.type === 'item');
-    return itemsOnly.length > 0 ? itemsOnly[itemsOnly.length - 1].text : '';
+    const itemsOnly = (messageLog?.value ?? []).filter((m) => m.type === 'item');
+    return itemsOnly.length > 0 ? itemsOnly[itemsOnly.length - 1]?.text ?? '' : '';
   });
   import NonogramBoard from '~/components/NonogramBoard.vue';
   import { useNonogram } from '~/composables/useNonogram';
@@ -340,7 +340,8 @@
   }
 
   function checkAll() {
-    if (!items.unlocks.checkMistakes) return;
+    // Ability is always available
+    // if (!items.unlocks.checkMistakes) return;
     checkPulse.value = true;
     window.setTimeout(() => (checkPulse.value = false), 2000);
   }
@@ -971,32 +972,23 @@
                       <span class="text-sm text-neutral-200 group-hover:text-white transition-colors"> Show mistakes in real-time </span>
                     </label>
 
-                    <label class="flex items-center gap-3 group" :class="items.unlocks.autoX ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'">
-                      <input type="checkbox" v-model="autoX" class="checkbox-field" :disabled="!items.unlocks.autoX" />
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" v-model="autoX" class="checkbox-field" />
                       <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
-                        <span v-if="!items.unlocks.autoX">🔒</span>
                         Auto-X completed rows/columns
                       </span>
                     </label>
 
-                    <label
-                      class="flex items-center gap-3 group"
-                      :class="items.unlocks.greyHints ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
-                    >
-                      <input type="checkbox" v-model="greyCompletedHints" class="checkbox-field" :disabled="!items.unlocks.greyHints" />
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" v-model="greyCompletedHints" class="checkbox-field" />
                       <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
-                        <span v-if="!items.unlocks.greyHints">🔒</span>
                         Grey out completed hints
                       </span>
                     </label>
 
-                    <label
-                      class="flex items-center gap-3 group"
-                      :class="items.unlocks.dragPaint ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
-                    >
-                      <input type="checkbox" v-model="dragPainting" class="checkbox-field" :disabled="!items.unlocks.dragPaint" />
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" v-model="dragPainting" class="checkbox-field" />
                       <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
-                        <span v-if="!items.unlocks.dragPaint">🔒</span>
                         Click and drag to paint cells
                       </span>
                     </label>
