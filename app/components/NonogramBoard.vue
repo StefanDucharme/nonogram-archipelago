@@ -120,6 +120,12 @@
     }
     if (e.type === 'touchstart') {
       lastTouchTime = now;
+      // Start drag painting on touchstart for mobile
+      if (props.dragPainting) {
+        isDragging.value = true;
+        dragMode.value = mobile && props.mobileCellMode ? props.mobileCellMode : 'fill';
+        dragStartCell.value = { r, c };
+      }
     } else if (e.type === 'pointerdown' && now - lastTouchTime < 500) {
       // Ignore pointerdown if a touch event just happened
       return;
@@ -154,8 +160,8 @@
       solution: props.solution ? props.solution[r]?.[c] : undefined,
     });
 
-    // On mobile, disable drag painting for tap (single cell)
-    if (props.dragPainting && !(mobile && e.type === 'touchstart')) {
+    // Only start drag painting on pointerdown for desktop
+    if (props.dragPainting && e.type === 'pointerdown' && !mobile) {
       isDragging.value = true;
       dragMode.value = mode;
       dragStartCell.value = { r, c };
