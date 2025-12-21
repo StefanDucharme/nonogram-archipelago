@@ -109,11 +109,11 @@
     return i > 0 && i % groupSize === 0;
   }
 
-  function onPointerDown(e: PointerEvent, r: number, c: number) {
+  function onPointerDown(e: PointerEvent | TouchEvent, r: number, c: number) {
     e.preventDefault();
 
-    // Only left click sets "selected"
-    if (e.button === 0) selected.value = { r, c };
+    // Only left click sets "selected" (for pointer events)
+    if ((e as PointerEvent).button === 0 || (e as TouchEvent).touches) selected.value = { r, c };
 
     // On mobile, use the toggle for mode
     let mode: 'fill' | 'x' | 'erase';
@@ -121,13 +121,12 @@
     if (isMobile && props.mobileCellMode) {
       mode = props.mobileCellMode;
     } else {
-      const erase = e.shiftKey;
+      const erase = (e as PointerEvent).shiftKey;
       if (erase) mode = 'erase';
-      else if (e.button === 2) mode = 'x';
+      else if ((e as PointerEvent).button === 2) mode = 'x';
       else mode = 'fill';
     }
 
-    // Start drag painting if enabled (desktop only)
     if (props.dragPainting) {
       isDragging.value = true;
       dragMode.value = mode;
@@ -135,6 +134,35 @@
     }
 
     emit('cell', r, c, mode);
+  }
+
+  // Ref for the grid container
+  const gridRef = ref<HTMLElement | null>(null);
+
+  function onTouchMove(e: TouchEvent) {
+    if (!props.dragPainting || !isDragging.value || !dragMode.value) return;
+    e.preventDefault();
+    // Use the grid container for coordinates
+    const grid = gridRef.value;
+    if (!grid) return;
+    const rect = grid.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    const r = Math.floor(y / cellSize.value);
+    const c = Math.floor(x / cellSize.value);
+    if (r >= 0 && r < props.rows && c >= 0 && c < props.cols) {
+      onPointerMove(e as any, r, c);
+    }
+  }
+
+  function onTouchEnd(e: TouchEvent) {
+    if (props.dragPainting && isDragging.value) {
+      e.preventDefault();
+      isDragging.value = false;
+      dragMode.value = null;
+      dragStartCell.value = null;
+    }
   }
 
   function onPointerMove(e: PointerEvent, r: number, c: number) {
@@ -269,7 +297,15 @@
 </script>
 
 <template>
-  <div class="select-none" :style="{ '--cell': `${cellSize}px`, display: 'inline-block', minWidth: 'max-content' }">
+  <div
+    class="select-none"
+    :style="{
+      '--cell': `${cellSize}px`,
+      display: 'inline-block',
+      minWidth: 'max-content',
+      touchAction: 'none', // Always prevent scrolling on grid for mobile drag
+    }"
+  >
     <!-- Whole thing is a 2x2 grid: [corner | col clues] / [row clues | board] -->
     <div
       class="grid gap-1 sm:gap-2"
@@ -429,12 +465,16 @@
 
           <!-- Clickable cells -->
           <div
+            ref="gridRef"
             class="grid relative"
             :style="{
               gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
               gridTemplateRows: `repeat(${rows}, ${cellSize}px)`,
             }"
             @contextmenu.prevent
+            @touchmove="onTouchMove"
+            @touchend="onTouchEnd"
+            @touchcancel="onTouchEnd"
           >
             <button
               v-for="idx in rows * cols"
@@ -467,6 +507,7 @@
               @pointerdown="(e) => onPointerDown(e as PointerEvent, Math.floor((idx - 1) / cols), (idx - 1) % cols)"
               @pointermove="(e) => onPointerMove(e as PointerEvent, Math.floor((idx - 1) / cols), (idx - 1) % cols)"
               @pointerup="(e) => onPointerUp(e as PointerEvent)"
+              @touchstart="(e) => onPointerDown(e as TouchEvent, Math.floor((idx - 1) / cols), (idx - 1) % cols)"
             >
               <span
                 v-if="player[Math.floor((idx - 1) / cols)]?.[(idx - 1) % cols] === 'x' || shouldAutoX(Math.floor((idx - 1) / cols), (idx - 1) % cols)"

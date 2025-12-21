@@ -93,7 +93,8 @@
   const effectiveAutoX = computed(() => autoX.value && items.unlocks.autoX);
   const effectiveGreyHints = computed(() => greyCompletedHints.value && items.unlocks.greyHints);
   // On mobile, disable drag painting to prevent grid movement issues
-  const effectiveDragPainting = computed(() => !isMobile.value && dragPainting.value && items.unlocks.dragPaint);
+  // Allow drag painting on mobile
+  const effectiveDragPainting = computed(() => dragPainting.value && items.unlocks.dragPaint);
   const gameOver = computed(() => !items.unlimitedLives.value && items.currentLives.value <= 0);
 
   // Filter out consumables from unlocked/locked items display
