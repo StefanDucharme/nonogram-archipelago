@@ -54,10 +54,14 @@ export function useNonogram() {
   }
 
   function newRandom(r = rows.value, c = cols.value) {
-    rows.value = r;
-    cols.value = c;
-    solution.value = randomSolution(r, c, fillRate.value);
-    player.value = makeGrid(r, c, 'empty');
+    // Clamp to minimum 5x5
+    const minSize = 5;
+    const clampedR = Math.max(r, minSize);
+    const clampedC = Math.max(c, minSize);
+    rows.value = clampedR;
+    cols.value = clampedC;
+    solution.value = randomSolution(clampedR, clampedC, fillRate.value);
+    player.value = makeGrid(clampedR, clampedC, 'empty');
   }
 
   function clearPlayer() {
