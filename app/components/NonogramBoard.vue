@@ -109,7 +109,21 @@
     return i > 0 && i % groupSize === 0;
   }
 
+  // Prevent double event firing on mobile (touchstart then pointerdown)
+  let lastTouchTime = 0;
   function onPointerDown(e: PointerEvent | TouchEvent, r: number, c: number) {
+    const now = Date.now();
+    const mobile = window.innerWidth < 1024;
+    if (mobile && e.type === 'pointerdown') {
+      // On mobile, ignore pointerdown entirely (handle only touchstart)
+      return;
+    }
+    if (e.type === 'touchstart') {
+      lastTouchTime = now;
+    } else if (e.type === 'pointerdown' && now - lastTouchTime < 500) {
+      // Ignore pointerdown if a touch event just happened
+      return;
+    }
     e.preventDefault();
 
     // Only left click sets "selected" (for pointer events)
@@ -117,8 +131,7 @@
 
     // On mobile, use the toggle for mode
     let mode: 'fill' | 'x' | 'erase';
-    const isMobile = window.innerWidth < 1024;
-    if (isMobile && props.mobileCellMode) {
+    if (mobile && props.mobileCellMode) {
       mode = props.mobileCellMode;
     } else {
       const erase = (e as PointerEvent).shiftKey;
@@ -127,7 +140,22 @@
       else mode = 'fill';
     }
 
-    if (props.dragPainting) {
+    // Debug: log pointer/touch event and mode
+    console.log('[onPointerDown]', {
+      eventType: e.type,
+      isMobile: mobile,
+      r,
+      c,
+      mode,
+      dragPainting: props.dragPainting,
+      mobileCellMode: props.mobileCellMode,
+      showMistakes: props.showMistakes,
+      player: props.player[r]?.[c],
+      solution: props.solution ? props.solution[r]?.[c] : undefined,
+    });
+
+    // On mobile, disable drag painting for tap (single cell)
+    if (props.dragPainting && !(mobile && e.type === 'touchstart')) {
       isDragging.value = true;
       dragMode.value = mode;
       dragStartCell.value = { r, c };

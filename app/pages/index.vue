@@ -223,6 +223,8 @@
 
     // Apply the change
     cycleCell(r, c, mode);
+    // Force reactivity update (simple fix for mobile mistake display)
+    player.value = player.value.slice();
 
     // Check result after change
     const newState = player.value[r]?.[c];
@@ -236,6 +238,7 @@
         }
       } else {
         items.loseLife(); // Mistake
+        player.value = player.value.slice(); // Force update after mistake
       }
     } else if (mode === 'x' && newState === 'x') {
       if (!shouldBeFilled) {
