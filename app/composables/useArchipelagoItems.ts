@@ -19,13 +19,6 @@
 // ITEM IDS - Must match your Archipelago world
 // ============================================
 export const AP_ITEMS = {
-  // Settings Unlocks (8000xxx range)
-  UNLOCK_PLACE_X: 8000001,
-  UNLOCK_AUTO_X: 8000002,
-  UNLOCK_GREY_HINTS: 8000003,
-  UNLOCK_DRAG_PAINT: 8000004,
-  UNLOCK_CHECK_MISTAKES: 8000005,
-
   // Hint Visibility (8001xxx range)
   UNLOCK_HINTS: 8001001,
 
@@ -37,10 +30,6 @@ export const AP_ITEMS = {
 
   // Consumables (8004xxx range)
   SOLVE_RANDOM_CELL: 8004001, // Solves a random unsolved cell
-
-  // Future items can be added here
-  // UNLOCK_LARGER_PUZZLES: 8004001,
-  // HINT_TOKEN: 8005001,
 } as const;
 
 // ============================================
@@ -159,30 +148,6 @@ export interface ItemDefinition {
 
 export const ITEM_REGISTRY: ItemDefinition[] = [
   {
-    id: AP_ITEMS.UNLOCK_PLACE_X,
-    name: 'Place X',
-    description: 'Unlock the ability to mark cells with X',
-    category: 'settings',
-  },
-  {
-    id: AP_ITEMS.UNLOCK_AUTO_X,
-    name: 'Auto-X',
-    description: 'Unlock automatic X marking for completed rows/columns',
-    category: 'settings',
-  },
-  {
-    id: AP_ITEMS.UNLOCK_GREY_HINTS,
-    name: 'Grey Completed Hints',
-    description: 'Unlock greying out of completed hint numbers',
-    category: 'settings',
-  },
-  {
-    id: AP_ITEMS.UNLOCK_DRAG_PAINT,
-    name: 'Drag Painting',
-    description: 'Unlock click and drag to paint multiple cells',
-    category: 'settings',
-  },
-  {
     id: AP_ITEMS.UNLOCK_HINTS,
     name: 'Hint Reveal',
     description: 'Reveals 1 additional random row or column hint per puzzle',
@@ -215,13 +180,7 @@ export function useArchipelagoItems() {
   // Unlock states - these determine what features are available
   // In "locked" mode (Archipelago run), these start as false
   // In "free play" mode, these are all true
-  const unlocks = reactive({
-    placeX: false,
-    autoX: false,
-    greyHints: false,
-    dragPaint: false,
-    checkMistakes: false,
-  });
+  // Remove unlocks object, as abilities are always available
 
   // Whether we're in Archipelago mode (locked) or free play (unlocked)
   const archipelagoMode = ref(false);
@@ -308,23 +267,8 @@ export function useArchipelagoItems() {
     const itemDef = getItemDefinition(itemId);
     let newChecks: number[] = [];
 
-    // Apply the unlock
+    // Apply the unlock (no ability unlocks anymore)
     switch (itemId) {
-      case AP_ITEMS.UNLOCK_PLACE_X:
-        unlocks.placeX = true;
-        break;
-      case AP_ITEMS.UNLOCK_AUTO_X:
-        unlocks.autoX = true;
-        break;
-      case AP_ITEMS.UNLOCK_GREY_HINTS:
-        unlocks.greyHints = true;
-        break;
-      case AP_ITEMS.UNLOCK_DRAG_PAINT:
-        unlocks.dragPaint = true;
-        break;
-      case AP_ITEMS.UNLOCK_CHECK_MISTAKES:
-        unlocks.checkMistakes = true;
-        break;
       case AP_ITEMS.UNLOCK_HINTS:
         hintReveals.value += 1;
         addRandomHintReveal(); // Immediately reveal a new hint on current puzzle
@@ -351,11 +295,6 @@ export function useArchipelagoItems() {
   // Enable Archipelago mode (lock everything)
   function enableArchipelagoMode() {
     archipelagoMode.value = true;
-    unlocks.placeX = false;
-    unlocks.autoX = false;
-    unlocks.greyHints = false;
-    unlocks.dragPaint = false;
-    unlocks.checkMistakes = false;
     receivedItems.value = [];
     extraLives.value = 0;
     currentLives.value = baseLives.value;
@@ -383,11 +322,7 @@ export function useArchipelagoItems() {
   // Disable Archipelago mode (unlock everything for free play)
   function disableArchipelagoMode() {
     archipelagoMode.value = false;
-    unlocks.placeX = true;
-    unlocks.autoX = true;
-    unlocks.greyHints = true;
-    unlocks.dragPaint = true;
-    unlocks.checkMistakes = true;
+    // All abilities are always available; nothing to unlock
     // Reset resources (unlimited settings handle display)
     currentLives.value = baseLives.value;
     coins.value = startingCoins.value;
@@ -580,13 +515,21 @@ export function useArchipelagoItems() {
   }
 
   // Buy difficulty increase
-  function buyDifficultyIncrease(): { success: boolean; checks: number[] } {
+  function buyDifficultyIncrease(): { success: boolean; checks: number[]; reason?: string } {
+    // Only allow increasing if all puzzles for current difficulty are completed
+    const difficulties = [5, 10, 15, 20];
+    const idx = difficulties.indexOf(currentDifficulty.value);
+    if (idx < 0 || idx === difficulties.length - 1) {
+      return { success: false, checks: [], reason: 'Already at max difficulty.' };
+    }
+    const diffStr = `${currentDifficulty.value}x${currentDifficulty.value}`;
+    if (puzzlesCompleted[diffStr] < PUZZLE_COUNTS[diffStr]) {
+      return { success: false, checks: [], reason: `Complete all ${diffStr} puzzles first.` };
+    }
     if (spendCoins(DIFFICULTY_INCREASE_COST.value)) {
       currentDifficulty.value += DIFFICULTY_STEP;
-
       const newChecks: number[] = [];
       if (archipelagoMode.value) {
-        // Check which difficulty unlock this corresponds to
         if (currentDifficulty.value === 10 && !completedChecks.value.has(AP_LOCATIONS.UNLOCK_10X10)) {
           completedChecks.value.add(AP_LOCATIONS.UNLOCK_10X10);
           newChecks.push(AP_LOCATIONS.UNLOCK_10X10);
@@ -598,10 +541,20 @@ export function useArchipelagoItems() {
           newChecks.push(AP_LOCATIONS.UNLOCK_20X20);
         }
       }
-
       return { success: true, checks: newChecks };
     }
-    return { success: false, checks: [] };
+    return { success: false, checks: [], reason: 'Not enough coins.' };
+  }
+
+  // Allow decreasing difficulty (shop)
+  function buyDifficultyDecrease(): { success: boolean; reason?: string } {
+    const difficulties = [5, 10, 15, 20];
+    const idx = difficulties.indexOf(currentDifficulty.value);
+    if (idx <= 0) {
+      return { success: false, reason: 'Already at minimum difficulty.' };
+    }
+    currentDifficulty.value -= DIFFICULTY_STEP;
+    return { success: true };
   }
 
   // Mark first line as completed for a specific difficulty and return the location ID if it's a new check
@@ -673,7 +626,6 @@ export function useArchipelagoItems() {
 
   return {
     // State
-    unlocks,
     archipelagoMode,
     receivedItems,
 
@@ -744,6 +696,7 @@ export function useArchipelagoItems() {
     buyRandomCellSolve,
     buyTempHintReveal,
     buyDifficultyIncrease,
+    buyDifficultyDecrease,
     markFirstLineCompleted,
     markPuzzleCompleted,
     getPuzzleLocationId,

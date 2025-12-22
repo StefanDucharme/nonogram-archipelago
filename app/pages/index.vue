@@ -1,4 +1,9 @@
 <script setup lang="ts">
+  // Compute the latest item message (sent or received)
+  const latestItemMessage = computed(() => {
+    const itemsOnly = (messageLog?.value ?? []).filter((m) => m.type === 'item');
+    return itemsOnly.length > 0 ? itemsOnly[itemsOnly.length - 1]?.text ?? '' : '';
+  });
   import NonogramBoard from '~/components/NonogramBoard.vue';
   import { useNonogram } from '~/composables/useNonogram';
   import { useArchipelago } from '~/composables/useArchipelago';
@@ -83,14 +88,18 @@
   const greyCompletedHints = ref(true);
   const showDebugGrid = ref(false);
   const dragPainting = ref(true);
+  // Mobile cell mode toggle: 'fill' or 'x'
+  const mobileCellMode = ref<'fill' | 'x'>('fill');
   const coinsPerLine = ref(1); // Coins earned per completed row/column
 
   // Computed values that combine user preferences with unlock state
   const effectiveShowMistakes = computed(() => showMistakes.value); // Always available, just a preference
-  const canPlaceX = computed(() => items.unlocks.placeX); // X placement requires unlock
-  const effectiveAutoX = computed(() => autoX.value && items.unlocks.autoX);
-  const effectiveGreyHints = computed(() => greyCompletedHints.value && items.unlocks.greyHints);
-  const effectiveDragPainting = computed(() => dragPainting.value && items.unlocks.dragPaint);
+  const canPlaceX = computed(() => true); // Always available
+  const effectiveAutoX = computed(() => autoX.value); // Always available
+  const effectiveGreyHints = computed(() => greyCompletedHints.value); // Always available
+  // On mobile, disable drag painting to prevent grid movement issues
+  // Allow drag painting on mobile
+  const effectiveDragPainting = computed(() => dragPainting.value); // Always allow drag painting
   const gameOver = computed(() => !items.unlimitedLives.value && items.currentLives.value <= 0);
 
   // Filter out consumables from unlocked/locked items display
@@ -214,6 +223,8 @@
 
     // Apply the change
     cycleCell(r, c, mode);
+    // Force reactivity update (simple fix for mobile mistake display)
+    player.value = player.value.slice();
 
     // Check result after change
     const newState = player.value[r]?.[c];
@@ -227,6 +238,7 @@
         }
       } else {
         items.loseLife(); // Mistake
+        player.value = player.value.slice(); // Force update after mistake
       }
     } else if (mode === 'x' && newState === 'x') {
       if (!shouldBeFilled) {
@@ -312,17 +324,27 @@
   function buyDifficultyIncrease() {
     const result = items.buyDifficultyIncrease();
     if (result.success) {
-      // Send difficulty unlock checks to AP
       if (result.checks.length > 0) {
         checkLocations(result.checks);
       }
-      // Regenerate puzzle at new difficulty
       randomize();
+    } else if (result.reason) {
+      alert(result.reason);
+    }
+  }
+
+  function buyDifficultyDecrease() {
+    const result = items.buyDifficultyDecrease();
+    if (result.success) {
+      randomize();
+    } else if (result.reason) {
+      alert(result.reason);
     }
   }
 
   function checkAll() {
-    if (!items.unlocks.checkMistakes) return;
+    // Ability is always available
+    // if (!items.unlocks.checkMistakes) return;
     checkPulse.value = true;
     window.setTimeout(() => (checkPulse.value = false), 2000);
   }
@@ -594,6 +616,30 @@
                 <span class="text-xs sm:text-sm text-neutral-400">Coins:</span>
                 <span class="text-base sm:text-lg font-bold text-amber-400">🪙 {{ items.coins.value }}</span>
                 <span v-if="items.unlimitedCoins.value" class="text-xs text-neutral-500">(∞)</span>
+                <!-- Mobile fill/X toggle -->
+                <div v-if="isMobile" class="ml-2 flex items-center gap-1">
+                  <span class="text-xs text-neutral-400">Mode:</span>
+                  <button
+                    :class="[
+                      'px-2 py-1 rounded-l border border-neutral-700',
+                      mobileCellMode === 'fill' ? 'bg-lime-600 text-white' : 'bg-neutral-800 text-neutral-300',
+                    ]"
+                    @click="mobileCellMode = 'fill'"
+                    aria-label="Fill mode"
+                  >
+                    ■
+                  </button>
+                  <button
+                    :class="[
+                      'px-2 py-1 rounded-r border border-l-0 border-neutral-700',
+                      mobileCellMode === 'x' ? 'bg-red-600 text-white' : 'bg-neutral-800 text-neutral-300',
+                    ]"
+                    @click="mobileCellMode = 'x'"
+                    aria-label="X mode"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -652,6 +698,7 @@
                   :drag-painting="effectiveDragPainting"
                   :is-row-hint-revealed="items.isRowHintRevealed"
                   :is-col-hint-revealed="items.isColHintRevealed"
+                  :mobile-cell-mode="mobileCellMode"
                   @cell="handleCellChange"
                 />
                 <div v-else class="flex items-center justify-center" style="width: 300px; height: 300px">
@@ -739,28 +786,7 @@
       >
         <!-- Active Abilities Panel - hidden on mobile, shown on desktop -->
         <div class="hidden lg:block lg:w-44 shrink-0 p-3 lg:border-r border-neutral-700/50 bg-neutral-900/95 lg:overflow-auto">
-          <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2 lg:mb-3">Abilities</h3>
           <div class="flex flex-wrap gap-3 lg:flex-col lg:gap-0 lg:space-y-2">
-            <!-- Place X Markers -->
-            <div class="flex items-center gap-1.5 text-xs" :class="items.unlocks.placeX ? 'text-lime-400' : 'text-neutral-500'">
-              <span>{{ items.unlocks.placeX ? '✓' : '🔒' }}</span>
-              <span>Place X</span>
-            </div>
-            <!-- Auto X -->
-            <div class="flex items-center gap-1.5 text-xs" :class="effectiveAutoX ? 'text-lime-400' : 'text-neutral-500'">
-              <span>{{ items.unlocks.autoX ? (autoX ? '✓' : '○') : '🔒' }}</span>
-              <span>Auto-X</span>
-            </div>
-            <!-- Grey Hints -->
-            <div class="flex items-center gap-1.5 text-xs" :class="effectiveGreyHints ? 'text-lime-400' : 'text-neutral-500'">
-              <span>{{ items.unlocks.greyHints ? (greyCompletedHints ? '✓' : '○') : '🔒' }}</span>
-              <span>Grey Hints</span>
-            </div>
-            <!-- Drag Paint -->
-            <div class="flex items-center gap-1.5 text-xs" :class="effectiveDragPainting ? 'text-lime-400' : 'text-neutral-500'">
-              <span>{{ items.unlocks.dragPaint ? (dragPainting ? '✓' : '○') : '🔒' }}</span>
-              <span>Drag Paint</span>
-            </div>
             <!-- Hint Reveals -->
             <div
               class="flex items-center gap-1.5 text-xs"
@@ -949,32 +975,23 @@
                       <span class="text-sm text-neutral-200 group-hover:text-white transition-colors"> Show mistakes in real-time </span>
                     </label>
 
-                    <label class="flex items-center gap-3 group" :class="items.unlocks.autoX ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'">
-                      <input type="checkbox" v-model="autoX" class="checkbox-field" :disabled="!items.unlocks.autoX" />
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" v-model="autoX" class="checkbox-field" />
                       <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
-                        <span v-if="!items.unlocks.autoX">🔒</span>
                         Auto-X completed rows/columns
                       </span>
                     </label>
 
-                    <label
-                      class="flex items-center gap-3 group"
-                      :class="items.unlocks.greyHints ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
-                    >
-                      <input type="checkbox" v-model="greyCompletedHints" class="checkbox-field" :disabled="!items.unlocks.greyHints" />
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" v-model="greyCompletedHints" class="checkbox-field" />
                       <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
-                        <span v-if="!items.unlocks.greyHints">🔒</span>
                         Grey out completed hints
                       </span>
                     </label>
 
-                    <label
-                      class="flex items-center gap-3 group"
-                      :class="items.unlocks.dragPaint ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
-                    >
-                      <input type="checkbox" v-model="dragPainting" class="checkbox-field" :disabled="!items.unlocks.dragPaint" />
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" v-model="dragPainting" class="checkbox-field" />
                       <span class="text-sm text-neutral-200 group-hover:text-white transition-colors flex items-center gap-2">
-                        <span v-if="!items.unlocks.dragPaint">🔒</span>
                         Click and drag to paint cells
                       </span>
                     </label>
@@ -1118,7 +1135,7 @@
                 </div>
               </div>
 
-              <div class="bg-neutral-800/30 rounded-sm h-64 overflow-hidden">
+              <div class="bg-neutral-800/30 rounded-sm flex-1 min-h-0 overflow-hidden" style="height: auto">
                 <div class="h-full p-4 overflow-auto custom-scrollbar">
                   <div v-if="messageLog.length === 0" class="flex items-center justify-center h-full text-xs text-neutral-500">
                     <div class="text-center space-y-2">
@@ -1257,6 +1274,21 @@
                     </div>
                     <span class="text-xs">🪙 {{ items.DIFFICULTY_INCREASE_COST.value }}</span>
                   </button>
+                  <!-- Decrease Difficulty (shop, always available in AP mode) -->
+                  <button
+                    v-if="items.archipelagoMode.value"
+                    class="w-full px-4 py-3 rounded text-sm font-medium transition-colors flex items-center justify-between bg-blue-500/20 text-blue-300 hover:bg-blue-500/30"
+                    :disabled="items.currentDifficulty.value <= 5"
+                    @click="buyDifficultyDecrease()"
+                  >
+                    <div class="text-left">
+                      <span>📉 Decrease Difficulty</span>
+                      <div class="text-[10px] opacity-70">
+                        {{ items.currentDifficulty.value }}x{{ items.currentDifficulty.value }} →
+                        {{ items.currentDifficulty.value - items.DIFFICULTY_STEP }}x{{ items.currentDifficulty.value - items.DIFFICULTY_STEP }}
+                      </div>
+                    </div>
+                  </button>
                 </div>
               </section>
 
@@ -1384,12 +1416,12 @@
             </div>
           </div>
 
-          <!-- Right side: Latest message and version (always takes half) -->
+          <!-- Right side: Latest item message (sent or received) and version (always takes half) -->
           <div class="w-1/2 text-xs text-neutral-400 truncate text-right">
-            <span v-if="lastMessage" :key="lastMessage" class="inline-block animate-message-flash">
-              <span class="opacity-60">Latest:</span> {{ lastMessage }}
+            <span v-if="latestItemMessage" :key="latestItemMessage" class="inline-block animate-message-flash">
+              <span class="opacity-60">Latest item:</span> {{ latestItemMessage }}
             </span>
-            <span v-else class="opacity-40">No messages</span>
+            <span v-else class="opacity-40">No item messages</span>
             <span class="ml-4 opacity-30">v0.2</span>
           </div>
         </div>
