@@ -67,7 +67,7 @@
   --color-grid-cell-hover: rgba(107, 114, 128, 0.2);
   --color-grid-cell-selected: rgba(75, 85, 99, 0.3);
   --color-grid-clue-text: #fff;
-  --color-grid-clue-text-complete: #6b7280;
+  --color-grid-clue-text-complete: #4ade80;
   --color-grid-mistake-bg: rgba(239, 68, 68, 0.5);
   --color-grid-x-mark: #9ca3af;
   --color-grid-x-mark-wrong: #ef4444;
@@ -442,4 +442,8 @@ body {
 
 button {
   cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
 }

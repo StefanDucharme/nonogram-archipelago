@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+  import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
   import type { Cell, Mark } from '~/utils/nonogram';
 
   const props = defineProps<{
@@ -18,19 +18,21 @@
     dragPainting?: boolean;
     isRowHintRevealed?: (rowIndex: number) => boolean;
     isColHintRevealed?: (colIndex: number) => boolean;
-    mobileCellMode?: 'fill' | 'x'; // For mobile mode toggle
+    mobileCellMode?: 'fill' | 'x' | 'maybe'; // For mobile mode toggle
+    cursorRow?: number; // Mobile D-pad cursor cell (-1 to hide)
+    cursorCol?: number;
+    highlightLines?: boolean; // Highlight cursor row/column + clues
+    reservedBottom?: number; // px reserved below the board (e.g. mobile D-pad) so the grid still fits
     disabled?: boolean; // Disable interactions when puzzle is failed or completed
   }>();
 
   const emit = defineEmits<{
-    (e: 'cell', r: number, c: number, mode: 'fill' | 'x' | 'erase'): void;
+    (e: 'cell', r: number, c: number, mode: 'fill' | 'x' | 'erase' | 'maybe'): void;
   }>();
-
-  const selected = ref<{ r: number; c: number } | null>(null);
 
   // Drag painting state
   const isDragging = ref(false);
-  const dragMode = ref<'fill' | 'x' | 'erase' | null>(null);
+  const dragMode = ref<'fill' | 'x' | 'erase' | 'maybe' | null>(null);
   const dragStartCell = ref<{ r: number; c: number } | null>(null);
 
   // Global pointer up handler for when pointer is released outside grid
@@ -45,13 +47,28 @@
   // Track if component is mounted (client-side)
   const isMounted = ref(false);
 
-  // Reactive window width for responsive sizing - use consistent default for SSR
+  // Reactive window size for responsive sizing - consistent defaults for SSR
   const windowWidth = ref(520);
+  const windowHeight = ref(800);
+  const rootEl = ref<HTMLElement | null>(null);
+  const measuredAvailH = ref(0);
 
   function updateWindowWidth() {
     if (typeof window !== 'undefined') {
       windowWidth.value = window.innerWidth;
+      windowHeight.value = window.innerHeight;
+      measureAvail();
     }
+  }
+
+  // Measure the real space from the board's top edge to the viewport bottom. Because the board is
+  // top-aligned, this top is stable as the board resizes (no feedback loop), and it naturally
+  // accounts for all chrome above (burger bar + Lives/Coins status bar, even when it wraps).
+  function measureAvail() {
+    if (typeof window === 'undefined' || !rootEl.value) return;
+    const top = rootEl.value.getBoundingClientRect().top;
+    measuredAvailH.value = Math.max(0, window.innerHeight - top - 12);
+    measureXhair();
   }
 
   // Add global event listeners
@@ -60,6 +77,8 @@
     document.addEventListener('pointerup', handleGlobalPointerUp);
     updateWindowWidth();
     window.addEventListener('resize', updateWindowWidth);
+    void nextTick(measureAvail);
+    void nextTick(measureXhair);
   });
 
   onUnmounted(() => {
@@ -67,53 +86,42 @@
     window.removeEventListener('resize', updateWindowWidth);
   });
 
-  // Clear selected cell when puzzle changes
-  watch(
-    () => props.rows,
-    () => {
-      selected.value = null;
-    },
-  );
-
-  // Also clear selection when a new solution is loaded (new puzzle)
-  watch(
-    () => props.solution,
-    () => {
-      selected.value = null;
-    },
-  );
+  // Re-measure when the puzzle size changes (layout reflows).
+  watch([() => props.rows, () => props.cols], () => void nextTick(measureAvail));
 
   const colDepth = computed(() => Math.max(1, ...props.colClues.map((c) => c.length)));
   const rowDepth = computed(() => Math.max(1, ...props.rowClues.map((r) => r.length)));
+  const xhairOn = computed(
+    () => (props.highlightLines ?? true) && (props.cursorRow ?? -1) >= 0 && (props.cursorCol ?? -1) >= 0,
+  );
 
-  // Minimum cell size for usability (only enforced for large grids that need scrolling)
-  const MIN_CELL_SIZE = 24;
-
-  // Calculate available space and ideal cell size
+  // No hard floor: the board always fits the viewport. Cells shrink as needed so the whole grid
+  // (cells + clues, both axes) stays visible without scrolling, whatever the grid size.
+  const CELL_FLOOR = 6;
   const cellSize = computed(() => {
     const count = Math.max(props.rows, props.cols);
+    const desktop = windowWidth.value >= 1024;
 
-    if (windowWidth.value >= 640) {
-      // Desktop: max 520px board, min 14px cells
-      const idealSize = Math.floor(520 / count);
-      return Math.max(14, Math.min(idealSize, 45));
-    }
+    // Width: safe small constant (no wrap risk). Height: measured from the board top to the
+    // viewport bottom, so the whole grid always fits with no scroll, whatever the grid size.
+    const availW = desktop ? 560 : windowWidth.value - 32;
+    const availH =
+      (measuredAvailH.value > 0 ? measuredAvailH.value : windowHeight.value - 180) - (props.reservedBottom ?? 0);
 
-    // Mobile: try to fit grid on screen first
-    // Available width: screen - padding (48px for px-3 on each side + glass-card p-3)
-    // Need to also account for row clues (roughly rowDepth * 12px)
-    const rowClueWidth = rowDepth.value * 12;
-    const availableWidth = windowWidth.value - 48 - rowClueWidth - 16; // 16 for gaps
-    const idealSize = Math.floor(availableWidth / props.cols);
+    // Width fit: account for the left row-clue gutter (max of its fixed-min and cell-scaled size).
+    const byWidth = Math.min(
+      availW / (props.cols + 0.6 * rowDepth.value),
+      (availW - 16 * rowDepth.value) / props.cols,
+    );
+    // Height fit: account for the top col-clue header.
+    const byHeight = Math.min(
+      availH / (props.rows + 0.5 * colDepth.value),
+      (availH - 14 * colDepth.value) / props.rows,
+    );
 
-    // For small grids (≤10), use larger cells - they should fit comfortably
-    if (count <= 10) {
-      // Use larger cells, cap at 42px
-      return Math.max(28, Math.min(idealSize, 42));
-    }
-
-    // For larger grids, use minimum cell size and allow scrolling
-    return Math.max(MIN_CELL_SIZE, Math.min(idealSize, 32));
+    const cap = desktop ? 45 : count <= 10 ? 42 : 34;
+    const ideal = Math.floor(Math.min(byWidth, byHeight, cap));
+    return Math.max(CELL_FLOOR, ideal);
   });
 
   const groupSize = 5;
@@ -152,33 +160,17 @@
     }
     e.preventDefault();
 
-    // Only left click sets "selected" (for pointer events)
-    if ((e as PointerEvent).button === 0 || (e as TouchEvent).touches) selected.value = { r, c };
-
     // On mobile, use the toggle for mode
-    let mode: 'fill' | 'x' | 'erase';
+    let mode: 'fill' | 'x' | 'erase' | 'maybe';
     if (mobile && props.mobileCellMode) {
       mode = props.mobileCellMode;
     } else {
       const erase = (e as PointerEvent).shiftKey;
       if (erase) mode = 'erase';
+      else if ((e as PointerEvent).button === 1) mode = 'maybe'; // middle click = "?" template
       else if ((e as PointerEvent).button === 2) mode = 'x';
       else mode = 'fill';
     }
-
-    // Debug: log pointer/touch event and mode
-    console.log('[onPointerDown]', {
-      eventType: e.type,
-      isMobile: mobile,
-      r,
-      c,
-      mode,
-      dragPainting: props.dragPainting,
-      mobileCellMode: props.mobileCellMode,
-      showMistakes: props.showMistakes,
-      player: props.player[r]?.[c],
-      solution: props.solution ? props.solution[r]?.[c] : undefined,
-    });
 
     // Only start drag painting on pointerdown for desktop
     if (props.dragPainting && e.type === 'pointerdown' && !mobile) {
@@ -192,6 +184,27 @@
 
   // Ref for the grid container
   const gridRef = ref<HTMLElement | null>(null);
+  const xhairV = ref<Record<string, string> | null>(null);
+  const xhairH = ref<Record<string, string> | null>(null);
+  function measureXhair() {
+    if (typeof window === 'undefined' || !xhairOn.value || !rootEl.value || !gridRef.value) {
+      xhairV.value = null;
+      xhairH.value = null;
+      return;
+    }
+    const g = gridRef.value.getBoundingClientRect();
+    const root = rootEl.value.getBoundingClientRect();
+    const cs = cellSize.value;
+    const cx = g.left - root.left + (props.cursorCol ?? 0) * cs;
+    const cy = g.top - root.top + (props.cursorRow ?? 0) * cs;
+    xhairV.value = { left: `${cx}px`, top: '0px', width: `${cs}px`, height: `${root.height}px` };
+    xhairH.value = { left: '0px', top: `${cy}px`, width: `${root.width}px`, height: `${cs}px` };
+  }
+  watch(
+    [() => props.cursorRow, () => props.cursorCol, cellSize, xhairOn, () => props.rows, () => props.cols],
+    () => void nextTick(measureXhair),
+    { immediate: true },
+  );
 
   function onTouchMove(e: TouchEvent) {
     if (!props.dragPainting || !isDragging.value || !dragMode.value) return;
@@ -226,15 +239,13 @@
 
     // Paint the current cell if we've moved to a different cell
     if (!dragStartCell.value || r !== dragStartCell.value.r || c !== dragStartCell.value.c) {
-      // Check if we should paint this cell
+      // Paint cells whose state differs from the target so you can re-drag over
+      // already-treated cells; skip cells already in the target state (avoid toggling them off).
       const currentCellState = props.player[r][c];
-      const shouldPaint = dragMode.value === 'erase' || currentCellState === 'empty';
+      const shouldPaint = dragMode.value === 'erase' || currentCellState !== dragMode.value;
 
       if (shouldPaint) {
-        console.log('Drag painting:', r, c, dragMode.value);
         emit('cell', r, c, dragMode.value);
-      } else {
-        console.log('Skipping filled cell:', r, c, 'current state:', currentCellState);
       }
 
       dragStartCell.value = { r, c };
@@ -352,7 +363,8 @@
 
 <template>
   <div
-    class="select-none"
+    ref="rootEl"
+    class="select-none relative"
     :style="{
       '--cell': `${cellSize}px`,
       display: 'inline-block',
@@ -362,7 +374,7 @@
   >
     <!-- Whole thing is a 2x2 grid: [corner | col clues] / [row clues | board] -->
     <div
-      class="grid gap-1 sm:gap-2"
+      class="grid gap-1 sm:gap-2 relative z-[1]"
       :style="{
         gridTemplateColumns: `auto auto`,
         gridTemplateRows: `auto auto`,
@@ -378,7 +390,7 @@
       />
 
       <!-- column clues (grid: rows=colDepth, cols=cols) -->
-      <div>
+      <div :style="{ paddingLeft: padPx + 'px' }">
         <div
           class="grid"
           :style="{
@@ -391,7 +403,7 @@
               v-for="c in cols"
               :key="`col-${c}-r-${i}`"
               class="flex items-end justify-center text-[11px] leading-none"
-              :class="
+              :class="[
                 (() => {
                   const clueArray = colClues[c - 1];
                   if (!clueArray) return 'clue-text-default';
@@ -401,8 +413,9 @@
                     return isComplete ? 'clue-text-complete' : 'clue-text-default';
                   }
                   return 'clue-text-default';
-                })()
-              "
+                })(),
+                { 'xhair-clue': xhairOn && c - 1 === cursorCol },
+              ]"
             >
               <!-- show from bottom, hide 0 clues -->
               {{
@@ -425,7 +438,7 @@
       </div>
 
       <!-- row clues (grid: rows=rows, cols=rowDepth) -->
-      <div class="overflow-hidden">
+      <div class="overflow-hidden" :style="{ paddingTop: padPx + 'px' }">
         <div
           class="grid"
           :style="{
@@ -438,7 +451,7 @@
               v-for="i in rowDepth"
               :key="`row-${r}-c-${i}`"
               class="flex items-center justify-end pr-1.5 text-[11px] leading-none"
-              :class="
+              :class="[
                 (() => {
                   const clueArray = rowClues[r - 1];
                   if (!clueArray) return 'clue-text-default';
@@ -448,8 +461,9 @@
                     return isComplete ? 'clue-text-complete' : 'clue-text-default';
                   }
                   return 'clue-text-default';
-                })()
-              "
+                })(),
+                { 'xhair-clue': xhairOn && r - 1 === cursorRow },
+              ]"
             >
               <!-- show from right, hide 0 clues -->
               {{
@@ -534,22 +548,23 @@
               v-for="idx in rows * cols"
               :key="idx"
               class="flex items-center justify-center transition active:scale-[0.98]"
+              :class="{
+                'ring-2 ring-inset ring-amber-400 relative z-10':
+                  cursorRow === Math.floor((idx - 1) / cols) && cursorCol === (idx - 1) % cols,
+              }"
               :style="{
                 backgroundColor: (() => {
                   const r = Math.floor((idx - 1) / cols);
                   const c = (idx - 1) % cols;
                   const playerRow = player[r];
                   if (!playerRow) {
-                    const sel = selected && selected.r === r && selected.c === c;
-                    return sel ? `var(--color-grid-cell-selected)` : 'transparent';
+                    return 'transparent';
                   }
                   const v = playerRow[c];
-                  const sel = selected && selected.r === r && selected.c === c;
                   const wrongFill = isWrongFill(r, c);
                   const autoXing = shouldAutoX(r, c);
 
                   if (wrongFill) return `var(--color-grid-mistake-bg)`;
-                  if (sel) return `var(--color-grid-cell-selected)`;
                   if (autoXing) return `var(--color-grid-cell-hover)`;
                   if (v === 'fill') return `var(--color-grid-cell-filled)`;
                   return 'transparent';
@@ -575,10 +590,29 @@
               >
                 ✕
               </span>
+              <span
+                v-else-if="player[Math.floor((idx - 1) / cols)]?.[(idx - 1) % cols] === 'maybe'"
+                class="text-sm font-bold text-sky-300/80"
+              >?</span>
             </button>
           </div>
         </div>
       </div>
     </div>
+
+    <div v-if="xhairOn && xhairV" class="xhair-strip" :style="xhairV" />
+    <div v-if="xhairOn && xhairH" class="xhair-strip" :style="xhairH" />
   </div>
 </template>
+
+<style scoped>
+.xhair-clue {
+  font-weight: 600;
+}
+.xhair-strip {
+  position: absolute;
+  background: rgba(251, 191, 36, 0.13);
+  pointer-events: none;
+  z-index: 0;
+}
+</style>

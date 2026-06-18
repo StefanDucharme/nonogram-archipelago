@@ -1,0 +1,205 @@
+{
+  "language": {
+    "label": "Language",
+    "closeAria": "Close language menu"
+  },
+  "app": {
+    "title": "Nonopelagram"
+  },
+  "status": {
+    "powerups": "Power-ups:",
+    "lives": "Lives:",
+    "coins": "Coins:",
+    "connected": "Connected",
+    "connecting": "Connecting…",
+    "error": "Error",
+    "disconnected": "Disconnected"
+  },
+  "controls": {
+    "mode": "Mode",
+    "powerup": "Power-up",
+    "newPuzzle": "New Puzzle",
+    "nextPuzzle": "Next Puzzle",
+    "generate": "Generate New Puzzle",
+    "autoSolve": "Auto-Solve Puzzle",
+    "heal": "Heal +1 Life",
+    "clickDrag": "Click and drag to paint cells",
+    "revealHint": "Reveals 1 hint (this puzzle only)",
+    "solveRandomTitle": "Solve a random cell"
+  },
+  "log": {
+    "latest": "Latest:",
+    "send": "Send",
+    "eventsHere": "Game events will appear here",
+    "noMessages": "No messages yet",
+    "noItemMessages": "No item messages"
+  },
+  "board": {
+    "loading": "Loading puzzle...",
+    "complete": "Complete",
+    "quartersToHeart": "Quarters to next heart"
+  },
+  "common": {
+    "goal": "Goal",
+    "disable": "Disable",
+    "enable": "Enable",
+    "you": "you"
+  },
+  "nav": {
+    "menu": "Menu"
+  },
+  "tabs": {
+    "shop": "Shop",
+    "checks": "Checks",
+    "log": "Game Log",
+    "settings": "Settings",
+    "puzzle": "Puzzle",
+    "archipelago": "Archipelago",
+    "debug": "Debug"
+  },
+  "modal": {
+    "solvedTitle": "Puzzle Solved!",
+    "solvedBody": "Congratulations on completing the nonogram!",
+    "gameOverTitle": "Game Over!",
+    "gameOverBody": "You ran out of lives. Try again?",
+    "goalReached": "Goal reached!"
+  },
+  "settings": {
+    "title": "Game Settings",
+    "subtitle": "Customize your puzzle experience",
+    "appearance": "Appearance & Language",
+    "apMode": "Archipelago Mode",
+    "apModeDesc": "Lock features until received from AP",
+    "apLockedNote": "Archipelago Mode - Some features are locked until rewarded",
+    "resources": "Resources",
+    "startingLives": "Starting Lives",
+    "startingCoins": "Starting Coins",
+    "startingHints": "Starting Hints Revealed",
+    "unlimitedLives": "Unlimited Lives",
+    "unlimitedCoins": "Unlimited Coins",
+    "shopPrices": "Shop Prices",
+    "tempHintCost": "Temporary Hint Cost",
+    "randomCellCost": "Random Cell Solve Cost",
+    "coinsPerBundle": "Coins per Bundle",
+    "coinsPerLine": "Coins per Line",
+    "behaviour": "Behaviour",
+    "autoX": "Auto-X completed rows/columns",
+    "showMistakes": "Show mistakes in real-time",
+    "greyHints": "Grey out completed hints",
+    "logHints": "Log Hints",
+    "lockAspect": "Lock aspect ratio (square puzzles)",
+    "puzzleDimensions": "Puzzle Dimensions",
+    "rows": "Rows",
+    "columns": "Columns",
+    "fillDensity": "Fill Density",
+    "sparse": "Sparse (20%)",
+    "dense": "Dense (70%)",
+    "puzzleGeneration": "Puzzle Generation",
+    "gameActions": "Game Actions",
+    "clearCurrent": "Clear Current Puzzle",
+    "gameActionsLocked": "Game actions are locked in Archipelago mode",
+    "displayOptions": "Display Options",
+    "clearAllTitle": "Delete all saved progress including game state, items, coins, and puzzle history",
+    "showSolution": "Show solution grid (debug)",
+    "apModeLockedTitle": "Connected to an Archipelago server — the mode is locked",
+    "highlightLines": "Highlight active row & column (D-pad)"
+  },
+  "ap": {
+    "connectionTitle": "Archipelago Connection",
+    "connectSubtitle": "Connect to multiplayer server",
+    "enterDetails": "Enter your server details",
+    "host": "Host",
+    "port": "Port",
+    "playerName": "Player Name",
+    "password": "Password",
+    "useSecure": "Use secure connection",
+    "phHost": "localhost",
+    "phPort": "38281",
+    "phPlayer": "Your player name",
+    "phPassword": "Optional password",
+    "disconnect": "Disconnect",
+    "connecting": "Connecting…",
+    "connect": "Connect",
+    "chatPlaceholder": "Message or command (e.g. !hint)",
+    "chatPlaceholderOff": "Connect to chat"
+  },
+  "shop": {
+    "subtitle": "Spend coins on boosts & upgrades",
+    "buyRandomCell": "Buy & Use Random Cell Solve",
+    "tempHint": "Temporary Hint Reveal",
+    "walletLevelCheck": "Wallet Level {level} (multiworld check)",
+    "sendsCheckCap": "Sends a check · cap becomes {cap}",
+    "walletUpgrade": "Wallet Upgrade → Level {level}",
+    "maxCoins": "Max coins {from} → {to}",
+    "livesWord": "lives",
+    "heartContainerCheck": "Heart Container {index} (multiworld check)",
+    "sendsCheckHearts": "Sends a check · {max}/10 max hearts",
+    "buyQuarterHeart": "Buy Quarter Heart",
+    "buyHeart": "Buy Heart",
+    "maxHearts": "max hearts",
+    "increaseDifficulty": "Increase Difficulty",
+    "decreaseDifficulty": "Decrease Difficulty"
+  },
+  "goals": {
+    "locationChecks": "Location checks for this world",
+    "gridsWord": "grids",
+    "reached": "Reached",
+    "completedCount": "completed ({done}/{total})"
+  },
+  "misc": {
+    "giveFeedback": "Give Feedback"
+  },
+  "aria": {
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "moveUp": "Move up",
+    "moveLeft": "Move left",
+    "moveRight": "Move right",
+    "moveDown": "Move down",
+    "fillMode": "Fill mode",
+    "maybeMode": "Maybe (template) mode",
+    "xMode": "X mode",
+    "useRandomSolve": "Use a random cell solve",
+    "fillSelected": "Fill selected cell",
+    "crossSelected": "Cross selected cell"
+  },
+  "resize": {
+    "gameOptions": "Drag to resize Game / Options",
+    "shopTab": "Drag to resize Shop / Tab",
+    "logHeight": "Drag to resize the log height"
+  },
+  "flawless": {
+    "streakReset": "Flawless streak reset to 0",
+    "total": "total: {n}"
+  },
+  "theme": {
+    "choose": "Choose Theme",
+    "openTitle": "Open theme selector",
+    "selectAria": "Select color theme",
+    "closeAria": "Close theme menu",
+    "menuAria": "Theme selection menu",
+    "names": {
+      "default": "Dark (Default)",
+      "max-contrast": "High Contrast"
+    },
+    "descs": {
+      "default": "Nice for the eyes",
+      "max-contrast": "High contrast colors for maximum visibility"
+    }
+  },
+  "checks": {
+    "sectionGrid": "Grid {size}",
+    "sectionWallets": "Wallets",
+    "sectionHearts": "Hearts",
+    "sectionMisc": "Misc",
+    "unlock": "Unlock {size}",
+    "firstLine": "First Line ({size})",
+    "completePuzzles": "Complete {i} {size} Puzzle{s}",
+    "flawlessSize": "Flawless {size}",
+    "walletUpgradeN": "Wallet Upgrade {k}",
+    "heartContainerN": "Heart Container {k}",
+    "obtainCoins": "Obtain {n} Coins",
+    "flawlessStreak": "Flawless Streak ({n})",
+    "flawlessTotal": "Flawless Total ({n})"
+  }
+}

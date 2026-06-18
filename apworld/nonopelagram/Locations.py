@@ -75,33 +75,68 @@ location_table: Dict[str, NonogramLocationData] = {
     ),
 }
 
-# Generate 5x5 puzzle completion locations (1-26)
-for i in range(1, 27):
+# Pre-declare 5x5 puzzle completion IDs (1-100); only the configured count is created in regions
+for i in range(1, 101):
     location_table[f"Complete {i} 5x5 Puzzle{'s' if i > 1 else ''}"] = NonogramLocationData(
         code=9001000 + i,
         region="Puzzle Area"
     )
 
-# Generate 10x10 puzzle completion locations (1-15)
-for i in range(1, 16):
+# Pre-declare 10x10 puzzle completion IDs (1-100); only the configured count is created in regions
+for i in range(1, 101):
     location_table[f"Complete {i} 10x10 Puzzle{'s' if i > 1 else ''}"] = NonogramLocationData(
         code=9002000 + i,
         region="Puzzle Area"
     )
 
-# Generate 15x15 puzzle completion locations (1-10)
-for i in range(1, 11):
+# Pre-declare 15x15 puzzle completion IDs (1-100); only the configured count is created in regions
+for i in range(1, 101):
     location_table[f"Complete {i} 15x15 Puzzle{'s' if i > 1 else ''}"] = NonogramLocationData(
         code=9003000 + i,
         region="Puzzle Area"
     )
 
-# Generate 20x20 puzzle completion locations (1-5)
-for i in range(1, 6):
+# Pre-declare 20x20 puzzle completion IDs (1-100); only the configured count is created in regions
+for i in range(1, 101):
     location_table[f"Complete {i} 20x20 Puzzle{'s' if i > 1 else ''}"] = NonogramLocationData(
         code=9004000 + i,
         region="Puzzle Area"
     )
+
+# Shop check locations (active only when the matching item is placed in the pool).
+# Wallet levels 1-4 -> 9006001-9006004
+WALLET_SHOP_LOCATION_NAMES = [f"Shop: Wallet Level {k}" for k in range(1, 5)]
+for _k in range(1, 5):
+    location_table[f"Shop: Wallet Level {_k}"] = NonogramLocationData(
+        code=9006000 + _k,
+        region="Puzzle Area"
+    )
+
+# Heart Container shop checks. IDs 9007001-9007010 (created in regions when shop hearts on,
+# lives are finite, and hearts_in_pool > 0).
+HEART_SHOP_LOCATION_NAMES = [f"Shop: Heart Container {k}" for k in range(1, 11)]
+for _h in range(1, 11):
+    location_table[f"Shop: Heart Container {_h}"] = NonogramLocationData(
+        code=9007000 + _h,
+        region="Puzzle Area"
+    )
+
+# Flawless checks (no-mistake clears). IDs 9005001-9005006.
+# Created in regions only when reachable for the configured puzzle counts.
+FLAWLESS_PER_SIZE_NAMES = {
+    "5x5": "Clear a 5x5 Puzzle Flawlessly",
+    "10x10": "Clear a 10x10 Puzzle Flawlessly",
+    "15x15": "Clear a 15x15 Puzzle Flawlessly",
+    "20x20": "Clear a 20x20 Puzzle Flawlessly",
+}
+FLAWLESS_STREAK_NAME = "Clear 5 Puzzles Flawlessly in a Row"
+FLAWLESS_TOTAL_NAME = "Clear 10 Puzzles Flawlessly"
+location_table[FLAWLESS_PER_SIZE_NAMES["5x5"]] = NonogramLocationData(code=9005001, region="Puzzle Area")
+location_table[FLAWLESS_PER_SIZE_NAMES["10x10"]] = NonogramLocationData(code=9005002, region="Puzzle Area")
+location_table[FLAWLESS_PER_SIZE_NAMES["15x15"]] = NonogramLocationData(code=9005003, region="Puzzle Area")
+location_table[FLAWLESS_PER_SIZE_NAMES["20x20"]] = NonogramLocationData(code=9005004, region="Puzzle Area")
+location_table[FLAWLESS_STREAK_NAME] = NonogramLocationData(code=9005005, region="Puzzle Area")
+location_table[FLAWLESS_TOTAL_NAME] = NonogramLocationData(code=9005006, region="Puzzle Area")
 
 # Add Victory event (no code)
 location_table["Goal"] = NonogramLocationData(
