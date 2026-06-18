@@ -228,8 +228,8 @@ cd apworld && python build_apworld.py   # build the APWorld
 
 ## Credits
 
-- Original **Nonogram** game & Archipelago integration: **Stefan Ducharme**
-- Fork additions (economy, hearts, wallets, flawless, multiworld shop checks, server sync, Death Link modes, UX): see the commit history and [`CHANGELOG.md`](./CHANGELOG.md).
+- Original **Nonogram** game & Archipelago integration: [StefanDucharme](https://github.com/StefanDucharme)
+- Contributions from [Serial-Developer](https://github.com/Serial-Developer)
 
 ## License
 
