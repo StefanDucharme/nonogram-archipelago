@@ -1947,7 +1947,7 @@
               <!-- Appearance & Language -->
               <section class="space-y-3">
                 <h3 class="section-heading">{{ $t('settings.appearance') }}</h3>
-                <div class="bg-neutral-800/30 rounded-sm p-4 flex flex-col gap-3 items-start">
+                <div class="bg-neutral-800/30 rounded-sm p-4 flex flex-row gap-3 items-start">
                   <LanguageSwitcher />
                   <ThemePicker />
                 </div>

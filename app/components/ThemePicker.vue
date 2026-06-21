@@ -54,7 +54,7 @@
           d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.5a2 2 0 00-1 .276m-4 5.414l-2.5-2.5"
         />
       </svg>
-      <span class="hidden sm:inline">{{ $t('theme.names.' + themeId) }}</span>
+      <span class="sm:inline">{{ $t('theme.names.' + themeId) }}</span>
     </button>
 
     <!-- Dropdown teleported to body: fixed + high z-index so it is never clipped

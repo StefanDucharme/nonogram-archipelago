@@ -56,7 +56,7 @@
         class="inline-flex w-5 h-[14px] rounded-sm overflow-hidden border border-black/20"
         v-html="flags[locale] || flags.en"
       ></span>
-      <span class="hidden sm:inline uppercase">{{ locale }}</span>
+      <span class="sm:inline uppercase">{{ locale }}</span>
     </button>
 
     <!-- Dropdown teleported to body: fixed + high z-index so it is never clipped
