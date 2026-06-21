@@ -165,7 +165,7 @@ class WalletsInPool(Range):
     display_name = "Wallets in Pool"
     range_start = 0
     range_end = 4
-    default = 0
+    default = 4
 
 
 class HeartsInPool(Range):
@@ -196,7 +196,7 @@ class DifficultyCost(Choice):
     option_normal = 2
     option_high = 3
     option_progressive = 4
-    default = 1
+    default = 4
 
 
 class LifeRestoreOnClear(Choice):

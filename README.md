@@ -53,6 +53,8 @@ requires:
   version: 0.6.7
 Nonopelagram:
   grid_preset: normal
+  difficulty_cost: progressive
+  wallets_in_pool: 4
   starting_lives: 3
   starting_coins: 5
   flawless_checks: true
@@ -90,7 +92,7 @@ All options are set in your YAML. Defaults are shown below; generate the templat
 | `coins_per_bundle` | low / normal / high / custom | normal | Coins per Coin Bundle (low=5, normal=50, high=100) |
 | `coins_per_bundle_custom` | 0-999 | 50 | Coins per bundle when `coins_per_bundle` is custom |
 | `extra_lives_in_pool` | 0-10 | 5 | Extra Life items in the pool |
-| `wallets_in_pool` | 0-4 | 0 | Wallet upgrades placed in the multiworld (shop slots become checks) |
+| `wallets_in_pool` | 0-4 | 4 | Wallet upgrades placed in the multiworld (shop slots become checks) |
 | `hearts_in_pool` | 0-10 | 0 | Heart containers placed in the shop as checks |
 
 Hint Reveal, Coin Bundle and Random Cell Solve items are distributed automatically across the remaining checks (fixed 10:15:3 ratio), so they have no pool-size options.
@@ -105,7 +107,7 @@ Hint Reveal, Coin Bundle and Random Cell Solve items are distributed automatical
 | `puzzles_15x15` | 0-100 | 10 | 15x15 puzzles (custom preset only) |
 | `puzzles_20x20` | 0-100 | 10 | 20x20 puzzles (custom preset only) |
 | `require_tier_completion` | true/false | true | Must clear a size before buying the next |
-| `difficulty_cost` | free / low / normal / high / progressive | low | Coin cost to raise difficulty |
+| `difficulty_cost` | free / low / normal / high / progressive | progressive | Coin cost to raise difficulty |
 
 ### Lives & hearts
 

@@ -12,6 +12,7 @@ Requires Archipelago 0.6.7 or newer.
 - Localization: English (and other non-French) players no longer see hardcoded French text in the shop / purchase notices, the flawless-streak line, the items-sent / checks-unlocked counters and the difficulty-progression messages; these now resolve through the locale files.
 
 ### Changed
+- Default options now ship meaningful multiworld logic out of the box: `difficulty_cost` defaults to `progressive` (99/999/1999 coins to reach 10x10/15x15/20x20) and `wallets_in_pool` defaults to 4, so submitting the game without customizing gates the difficulty tiers and the goal behind received Wallet Upgrades instead of leaving the world fully open. The bundled example YAML mirrors these defaults.
 - Hint Reveal is reclassified from progression to useful (it never gated a location); its item group is renamed from "Progression" to "Hints".
 - Wallet Upgrade is promoted to progression only when a wallet gate actually applies to the seed; otherwise it stays useful.
 
