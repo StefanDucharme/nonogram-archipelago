@@ -1698,7 +1698,16 @@
             class="w-full lg:w-[300px] shrink-0 lg:border-r border-neutral-700/50 bg-neutral-900/95 overflow-y-auto p-4"
             :style="shopStyle"
           >
-          <div class="space-y-6">
+          <!-- Mobile-only sticky coin balance: on the shop tab the board status bar (which shows coins) is hidden -->
+          <div
+            v-show="isMobile"
+            class="sticky top-0 z-10 -mx-4 px-4 py-2 flex items-center gap-2 bg-neutral-900/95 backdrop-blur border-b border-neutral-700/50"
+          >
+            <span class="text-xs text-neutral-400">{{ $t('status.coins') }}</span>
+            <span class="text-base font-bold text-amber-400">🪙 {{ items.coins.value }}<span v-if="items.archipelagoMode.value && !items.unlimitedCoins.value" class="text-[11px] font-normal text-amber-400/60"> / {{ items.coinCap.value }}</span></span>
+            <span v-if="items.unlimitedCoins.value" class="text-xs text-neutral-500">(∞)</span>
+          </div>
+          <div class="space-y-6" :class="{ 'pt-3': isMobile }">
             <div class="flex items-center gap-3">
               <div>
                 <h2 class="font-semibold text-neutral-100">{{ $t('tabs.shop') }}</h2>
