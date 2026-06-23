@@ -2612,7 +2612,7 @@
             </button>
             <span v-else class="opacity-50">{{ $t('log.noItemMessages') }}</span>
             <!-- version -->
-            <span class="ml-4 opacity-50">v0.6.7</span>
+            <span class="ml-4 opacity-50">v0.6.8</span>
           </div>
         </div>
       </div>
