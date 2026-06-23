@@ -19,13 +19,13 @@ Nonopelagram:
   coins_per_bundle: normal     # low=5 / normal=50 / high=100 / custom
   # coins_per_bundle_custom: 50  # coins per bundle when coins_per_bundle: custom
   extra_lives_in_pool: 5       # 0-10
-  wallets_in_pool: 0           # 0-4  (each becomes a shop check)
+  wallets_in_pool: 4           # 0-4  (each becomes a shop check)
   hearts_in_pool: 0            # 0-10 (each becomes a shop check)
   # Hint Reveal / Coin Bundle / Random Cell Solve fillers are distributed
   # automatically across the remaining checks (fixed 10:15:3 ratio).
 
   # Rules
   require_tier_completion: true
-  difficulty_cost: low         # free / low / normal / high / progressive
+  difficulty_cost: progressive # free / low / normal / high / progressive
   flawless_checks: true
   death_link: "off"            # off / on / damage
