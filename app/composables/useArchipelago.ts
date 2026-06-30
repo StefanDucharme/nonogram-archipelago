@@ -621,11 +621,12 @@ export function useArchipelago() {
   function checkGoalCompletion() {
     if (goalCompleted.value) return;
 
-    const goalPuzzles = slotData.value?.goal_puzzles ?? 64;
-    // Sum all puzzles completed across all difficulties
-    const totalCompleted =
-      items.puzzlesCompleted['5x5'] + items.puzzlesCompleted['10x10'] + items.puzzlesCompleted['15x15'] + items.puzzlesCompleted['20x20'];
-    if (totalCompleted >= goalPuzzles) {
+    // Mirror the APWorld goal: complete the required count of the highest ACTIVE tier.
+    // Reaching that tier already needs the wallet upgrades for its difficulty, so the goal
+    // cannot be satisfied by spamming a smaller size (e.g. only 5x5).
+    const sizes = ['5x5', '10x10', '15x15', '20x20'] as const;
+    const lastTier = [...sizes].reverse().find((sz) => items.PUZZLE_COUNTS[sz] > 0) ?? '5x5';
+    if (items.puzzlesCompleted[lastTier] >= items.PUZZLE_COUNTS[lastTier]) {
       completeGoal();
     }
   }
