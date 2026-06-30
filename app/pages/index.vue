@@ -399,6 +399,12 @@
 
   const AP_LOC = items.AP_LOCATIONS;
   function checkIconFor(id: number): string {
+    // Shop checks (purchasable wallet/heart slots) get a distinct cart icon.
+    if (
+      (id >= AP_LOC.SHOP_WALLET_1 && id <= AP_LOC.SHOP_WALLET_4) ||
+      (id >= AP_LOC.SHOP_HEART_1 && id <= AP_LOC.SHOP_HEART_10)
+    )
+      return '🛒';
     if (
       id === AP_LOC.FLAWLESS_5X5 ||
       id === AP_LOC.FLAWLESS_10X10 ||
@@ -415,6 +421,15 @@
     return '🧩'; // puzzle-completion milestone
   }
 
+  // Human-readable name for a check, including shop slots that aren't in the static registry.
+  function locationLabelFor(id: number): string {
+    const def = items.getLocationDefinition(id);
+    if (def) return def.name;
+    if (id >= AP_LOC.SHOP_WALLET_1 && id <= AP_LOC.SHOP_WALLET_4) return t('checks.walletUpgradeN', { k: id - AP_LOC.SHOP_WALLET_1 + 1 });
+    if (id >= AP_LOC.SHOP_HEART_1 && id <= AP_LOC.SHOP_HEART_10) return t('checks.heartContainerN', { k: id - AP_LOC.SHOP_HEART_1 + 1 });
+    return `Location #${id}`;
+  }
+
   // Location checks newly unlocked since the current puzzle began (insertion order preserved).
   const solvedUnlockedChecks = computed(() => {
     const cc: unknown = items.completedChecks.value;
@@ -422,7 +437,7 @@
     const start = checksAtPuzzleStart.value;
     return all
       .filter((id) => !start.has(id))
-      .map((id) => ({ id, name: items.getLocationDefinition(id)?.name ?? `Location #${id}`, icon: checkIconFor(id) }));
+      .map((id) => ({ id, name: locationLabelFor(id), icon: checkIconFor(id) }));
   });
 
   // Items actually found at the checks unlocked this puzzle (populated by scouting on solve).
@@ -1460,17 +1475,21 @@
                     <div class="text-[11px] uppercase tracking-wider text-accent-300/70">
                       {{ solvedItems.length > 0 ? $t('log.itemsSent') : $t('log.checksUnlocked') }}
                     </div>
-                    <!-- Items found (scouted): icon + name + classification badge + recipient -->
+                    <!-- Items found (scouted): source location (the check) + item it yielded + recipient -->
                     <template v-if="solvedItems.length > 0">
-                      <div
-                        v-for="it in solvedItems"
-                        :key="it.locationId"
-                        class="flex items-center gap-1.5 text-xs sm:text-sm text-accent-200"
-                      >
-                        <span>{{ itemIconFor(it) }}</span>
-                        <span>{{ it.itemName }}</span>
-                        <span v-if="itemClassBadge(it)">{{ itemClassBadge(it) }}</span>
-                        <span class="text-accent-300/70">→ {{ it.receiver === slot ? $t('common.you') : it.receiver }}</span>
+                      <div v-for="it in solvedItems" :key="it.locationId" class="text-xs sm:text-sm">
+                        <!-- the multiworld location (check) you just completed -->
+                        <div class="flex items-center gap-1.5 text-accent-300/70">
+                          <span>{{ checkIconFor(it.locationId) }}</span>
+                          <span>{{ locationLabelFor(it.locationId) }}</span>
+                        </div>
+                        <!-- the item found at that location, and who receives it -->
+                        <div class="flex items-center gap-1.5 pl-4 text-accent-200">
+                          <span>{{ itemIconFor(it) }}</span>
+                          <span>{{ it.itemName }}</span>
+                          <span v-if="itemClassBadge(it)">{{ itemClassBadge(it) }}</span>
+                          <span class="text-accent-300/70">→ {{ it.receiver === slot ? $t('common.you') : it.receiver }}</span>
+                        </div>
                       </div>
                     </template>
                     <!-- Fallback when scouting is unavailable: show the location names -->
