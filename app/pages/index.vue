@@ -1471,20 +1471,21 @@
                     <span>{{ $t('flawless.streak', { streak: items.flawlessStreak.value }) }} <span class="text-accent-300/70">{{ $t('flawless.totalInline', { total: items.flawlessTotal.value }) }}</span></span>
                   </div>
                   <!-- Archipelago: show what solving this puzzle unlocked -->
-                  <div v-if="solvedItems.length > 0 || solvedUnlockedChecks.length > 0 || goalCompleted" class="mt-1 space-y-0.5">
+                  <div v-if="solvedItems.length > 0 || solvedUnlockedChecks.length > 0 || goalCompleted" class="mt-1 flex flex-col gap-2">
                     <div class="text-[11px] uppercase tracking-wider text-accent-300/70">
                       {{ solvedItems.length > 0 ? $t('log.itemsSent') : $t('log.checksUnlocked') }}
                     </div>
                     <!-- Items found (scouted): source location (the check) + item it yielded + recipient -->
                     <template v-if="solvedItems.length > 0">
-                      <div v-for="it in solvedItems" :key="it.locationId" class="text-xs sm:text-sm">
+                      <div v-for="it in solvedItems" :key="it.locationId" class="text-xs sm:text-sm mb-2.5">
                         <!-- the multiworld location (check) you just completed -->
                         <div class="flex items-center gap-1.5 text-accent-300/70">
                           <span>{{ checkIconFor(it.locationId) }}</span>
                           <span>{{ locationLabelFor(it.locationId) }}</span>
                         </div>
                         <!-- the item found at that location, and who receives it -->
-                        <div class="flex items-center gap-1.5 pl-4 text-accent-200">
+                        <div class="flex items-center gap-1.5 pl-3 text-accent-200">
+                          <span class="text-accent-300/50">⤷</span>
                           <span>{{ itemIconFor(it) }}</span>
                           <span>{{ it.itemName }}</span>
                           <span v-if="itemClassBadge(it)">{{ itemClassBadge(it) }}</span>
@@ -1497,14 +1498,14 @@
                       <div
                         v-for="c in solvedUnlockedChecks"
                         :key="c.id"
-                        class="flex items-center gap-1.5 text-xs sm:text-sm text-accent-200"
+                        class="flex items-center gap-1.5 text-xs sm:text-sm text-accent-200 mb-2.5"
                       >
                         <span>{{ c.icon }}</span>
                         <span>{{ c.name }}</span>
                       </div>
                     </template>
-                    <div v-if="goalCompleted" class="flex items-center gap-1.5 text-xs sm:text-sm text-amber-300">
-                      <span>🏆</span>
+                    <div v-if="goalCompleted" class="mt-0.5 flex items-center gap-2 rounded-md bg-amber-500/15 px-2.5 py-1.5 text-sm sm:text-base font-bold text-amber-300 ring-1 ring-amber-400/40">
+                      <span class="text-lg sm:text-xl">🏆</span>
                       <span>{{ $t('modal.goalReached') }}</span>
                     </div>
                   </div>
@@ -2326,7 +2327,7 @@
                     class="flex items-center gap-2 text-xs text-amber-200/90"
                   >
                     <span class="font-mono">{{ b.size }}</span>
-                    <span class="ml-auto">{{ b.done }} / {{ b.total }}</span>
+                    <span class="ml-auto">{{ Math.min(b.done, b.total) }} / {{ b.total }}</span>
                   </div>
                 </div>
               </details>

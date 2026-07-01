@@ -621,12 +621,13 @@ export function useArchipelago() {
   function checkGoalCompletion() {
     if (goalCompleted.value) return;
 
-    // Mirror the APWorld goal: complete the required count of the highest ACTIVE tier.
-    // Reaching that tier already needs the wallet upgrades for its difficulty, so the goal
-    // cannot be satisfied by spamming a smaller size (e.g. only 5x5).
-    const sizes = ['5x5', '10x10', '15x15', '20x20'] as const;
-    const lastTier = [...sizes].reverse().find((sz) => items.PUZZLE_COUNTS[sz] > 0) ?? '5x5';
-    if (items.puzzlesCompleted[lastTier] >= items.PUZZLE_COUNTS[lastTier]) {
+    // The goal requires EVERY active tier to reach its quota (the same per-tier breakdown
+    // shown in the objective panel) — not just the highest tier, and not a size-agnostic
+    // total. This prevents winning by skipping a size (e.g. only 10x10) or by over-playing
+    // a small one (e.g. only 5x5).
+    const breakdown = items.goalBreakdown.value;
+    const allTiersComplete = breakdown.length > 0 && breakdown.every((b) => b.done >= b.total);
+    if (allTiersComplete) {
       completeGoal();
     }
   }

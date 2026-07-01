@@ -1254,8 +1254,13 @@ export function useArchipelagoItems() {
   const goalTarget = computed(
     () => PUZZLE_COUNTS["5x5"] + PUZZLE_COUNTS["10x10"] + PUZZLE_COUNTS["15x15"] + PUZZLE_COUNTS["20x20"],
   );
-  const goalProgress = computed(
-    () => puzzlesCompleted["5x5"] + puzzlesCompleted["10x10"] + puzzlesCompleted["15x15"] + puzzlesCompleted["20x20"],
+  const goalProgress = computed(() =>
+    // Cap each tier at its quota so the headline never reads e.g. 4/4 while a tier is unmet;
+    // this makes goalProgress === goalTarget exactly when every active tier is complete.
+    (["5x5", "10x10", "15x15", "20x20"] as const).reduce(
+      (sum, sz) => sum + Math.min(puzzlesCompleted[sz], PUZZLE_COUNTS[sz]),
+      0,
+    ),
   );
   const goalBreakdown = computed(() =>
     (["5x5", "10x10", "15x15", "20x20"] as const)

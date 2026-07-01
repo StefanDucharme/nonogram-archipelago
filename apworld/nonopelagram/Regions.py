@@ -117,15 +117,18 @@ def create_regions(world: "NonogramWorld") -> None:
         for m in range(1, hearts_in_pool + 1):
             add_gated(menu_region, HEART_SHOP_LOCATION_NAMES[m - 1], world.heart_shop_access_rule(m))
 
-    # Victory event in the highest tier's region: reaching the final puzzle of that tier.
-    # The tier chain already requires the wallet upgrades to get there, so the goal inherits
-    # them and real spheres form when a gate bites.
+    # Victory event in the highest tier's region. The goal requires completing the final
+    # puzzle of EVERY active tier (not just the highest), so a seed with
+    # require_tier_completion disabled cannot be won by skipping a smaller size. The highest
+    # tier still bounds the wallet requirement (lower tiers need fewer upgrades), so real
+    # spheres still form when a gate bites.
     last_region = tier_regions[last_tier]
-    final_count = counts.get(last_tier, 0) or 1
-    goal_location_name = f"Complete {final_count} {last_tier} Puzzle{'s' if final_count > 1 else ''}"
+    goal_location_names = tuple(
+        f"Complete {counts[t]} {t} Puzzle{'s' if counts[t] > 1 else ''}" for t in active_tiers
+    )
     victory_location = NonogramLocation(player, "Goal", None, last_region)
-    victory_location.access_rule = lambda state, loc=goal_location_name: state.can_reach(
-        loc, "Location", player
+    victory_location.access_rule = lambda state, names=goal_location_names: all(
+        state.can_reach(name, "Location", player) for name in names
     )
     victory_location.place_locked_item(world.create_item("Victory"))
     last_region.locations.append(victory_location)
