@@ -621,11 +621,13 @@ export function useArchipelago() {
   function checkGoalCompletion() {
     if (goalCompleted.value) return;
 
-    const goalPuzzles = slotData.value?.goal_puzzles ?? 64;
-    // Sum all puzzles completed across all difficulties
-    const totalCompleted =
-      items.puzzlesCompleted['5x5'] + items.puzzlesCompleted['10x10'] + items.puzzlesCompleted['15x15'] + items.puzzlesCompleted['20x20'];
-    if (totalCompleted >= goalPuzzles) {
+    // The goal requires EVERY active tier to reach its quota (the same per-tier breakdown
+    // shown in the objective panel) — not just the highest tier, and not a size-agnostic
+    // total. This prevents winning by skipping a size (e.g. only 10x10) or by over-playing
+    // a small one (e.g. only 5x5).
+    const breakdown = items.goalBreakdown.value;
+    const allTiersComplete = breakdown.length > 0 && breakdown.every((b) => b.done >= b.total);
+    if (allTiersComplete) {
       completeGoal();
     }
   }

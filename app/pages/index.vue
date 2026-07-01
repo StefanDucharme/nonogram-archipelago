@@ -399,6 +399,12 @@
 
   const AP_LOC = items.AP_LOCATIONS;
   function checkIconFor(id: number): string {
+    // Shop checks (purchasable wallet/heart slots) get a distinct cart icon.
+    if (
+      (id >= AP_LOC.SHOP_WALLET_1 && id <= AP_LOC.SHOP_WALLET_4) ||
+      (id >= AP_LOC.SHOP_HEART_1 && id <= AP_LOC.SHOP_HEART_10)
+    )
+      return '🛒';
     if (
       id === AP_LOC.FLAWLESS_5X5 ||
       id === AP_LOC.FLAWLESS_10X10 ||
@@ -415,6 +421,15 @@
     return '🧩'; // puzzle-completion milestone
   }
 
+  // Human-readable name for a check, including shop slots that aren't in the static registry.
+  function locationLabelFor(id: number): string {
+    const def = items.getLocationDefinition(id);
+    if (def) return def.name;
+    if (id >= AP_LOC.SHOP_WALLET_1 && id <= AP_LOC.SHOP_WALLET_4) return t('checks.walletUpgradeN', { k: id - AP_LOC.SHOP_WALLET_1 + 1 });
+    if (id >= AP_LOC.SHOP_HEART_1 && id <= AP_LOC.SHOP_HEART_10) return t('checks.heartContainerN', { k: id - AP_LOC.SHOP_HEART_1 + 1 });
+    return `Location #${id}`;
+  }
+
   // Location checks newly unlocked since the current puzzle began (insertion order preserved).
   const solvedUnlockedChecks = computed(() => {
     const cc: unknown = items.completedChecks.value;
@@ -422,7 +437,7 @@
     const start = checksAtPuzzleStart.value;
     return all
       .filter((id) => !start.has(id))
-      .map((id) => ({ id, name: items.getLocationDefinition(id)?.name ?? `Location #${id}`, icon: checkIconFor(id) }));
+      .map((id) => ({ id, name: locationLabelFor(id), icon: checkIconFor(id) }));
   });
 
   // Items actually found at the checks unlocked this puzzle (populated by scouting on solve).
@@ -1456,21 +1471,26 @@
                     <span>{{ $t('flawless.streak', { streak: items.flawlessStreak.value }) }} <span class="text-accent-300/70">{{ $t('flawless.totalInline', { total: items.flawlessTotal.value }) }}</span></span>
                   </div>
                   <!-- Archipelago: show what solving this puzzle unlocked -->
-                  <div v-if="solvedItems.length > 0 || solvedUnlockedChecks.length > 0 || goalCompleted" class="mt-1 space-y-0.5">
+                  <div v-if="solvedItems.length > 0 || solvedUnlockedChecks.length > 0 || goalCompleted" class="mt-1 flex flex-col gap-2">
                     <div class="text-[11px] uppercase tracking-wider text-accent-300/70">
                       {{ solvedItems.length > 0 ? $t('log.itemsSent') : $t('log.checksUnlocked') }}
                     </div>
-                    <!-- Items found (scouted): icon + name + classification badge + recipient -->
+                    <!-- Items found (scouted): source location (the check) + item it yielded + recipient -->
                     <template v-if="solvedItems.length > 0">
-                      <div
-                        v-for="it in solvedItems"
-                        :key="it.locationId"
-                        class="flex items-center gap-1.5 text-xs sm:text-sm text-accent-200"
-                      >
-                        <span>{{ itemIconFor(it) }}</span>
-                        <span>{{ it.itemName }}</span>
-                        <span v-if="itemClassBadge(it)">{{ itemClassBadge(it) }}</span>
-                        <span class="text-accent-300/70">→ {{ it.receiver === slot ? $t('common.you') : it.receiver }}</span>
+                      <div v-for="it in solvedItems" :key="it.locationId" class="text-xs sm:text-sm mb-2.5">
+                        <!-- the multiworld location (check) you just completed -->
+                        <div class="flex items-center gap-1.5 text-accent-300/70">
+                          <span>{{ checkIconFor(it.locationId) }}</span>
+                          <span>{{ locationLabelFor(it.locationId) }}</span>
+                        </div>
+                        <!-- the item found at that location, and who receives it -->
+                        <div class="flex items-center gap-1.5 pl-3 text-accent-200">
+                          <span class="text-accent-300/50">⤷</span>
+                          <span>{{ itemIconFor(it) }}</span>
+                          <span>{{ it.itemName }}</span>
+                          <span v-if="itemClassBadge(it)">{{ itemClassBadge(it) }}</span>
+                          <span class="text-accent-300/70">→ {{ it.receiver === slot ? $t('common.you') : it.receiver }}</span>
+                        </div>
                       </div>
                     </template>
                     <!-- Fallback when scouting is unavailable: show the location names -->
@@ -1478,14 +1498,14 @@
                       <div
                         v-for="c in solvedUnlockedChecks"
                         :key="c.id"
-                        class="flex items-center gap-1.5 text-xs sm:text-sm text-accent-200"
+                        class="flex items-center gap-1.5 text-xs sm:text-sm text-accent-200 mb-2.5"
                       >
                         <span>{{ c.icon }}</span>
                         <span>{{ c.name }}</span>
                       </div>
                     </template>
-                    <div v-if="goalCompleted" class="flex items-center gap-1.5 text-xs sm:text-sm text-amber-300">
-                      <span>🏆</span>
+                    <div v-if="goalCompleted" class="mt-0.5 flex items-center gap-2 rounded-md bg-amber-500/15 px-2.5 py-1.5 text-sm sm:text-base font-bold text-amber-300 ring-1 ring-amber-400/40">
+                      <span class="text-lg sm:text-xl">🏆</span>
                       <span>{{ $t('modal.goalReached') }}</span>
                     </div>
                   </div>
@@ -2307,7 +2327,7 @@
                     class="flex items-center gap-2 text-xs text-amber-200/90"
                   >
                     <span class="font-mono">{{ b.size }}</span>
-                    <span class="ml-auto">{{ b.done }} / {{ b.total }}</span>
+                    <span class="ml-auto">{{ Math.min(b.done, b.total) }} / {{ b.total }}</span>
                   </div>
                 </div>
               </details>
