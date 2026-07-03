@@ -1,4 +1,7 @@
 <script setup lang="ts">
+  declare const __APP_VERSION__: string;
+  const appVersion = __APP_VERSION__;
+
   import NonogramBoard from '~/components/NonogramBoard.vue';
   import ThemePicker from '~/components/ThemePicker.vue';
   import LanguageSwitcher from '~/components/LanguageSwitcher.vue';
@@ -2632,7 +2635,7 @@
             </button>
             <span v-else class="opacity-50">{{ $t('log.noItemMessages') }}</span>
             <!-- version -->
-            <span class="ml-4 opacity-50">v0.6.10</span>
+            <span class="ml-4 opacity-50">v{{ appVersion }}</span>
           </div>
         </div>
       </div>

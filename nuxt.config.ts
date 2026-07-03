@@ -1,4 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
+import { readFileSync } from 'node:fs';
+
+const { version } = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-12-18',
@@ -63,5 +66,8 @@ export default defineNuxtConfig({
   },
   vite: {
     plugins: [tailwindcss()],
+    define: {
+      __APP_VERSION__: JSON.stringify(version),
+    },
   },
 });
