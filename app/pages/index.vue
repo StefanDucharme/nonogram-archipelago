@@ -16,6 +16,7 @@
     rows,
     cols,
     fillRate,
+    forceUniqueSolution,
     solution,
     player,
     rowClueNumbers,
@@ -57,6 +58,17 @@
     saveGridState,
     say,
   } = useArchipelago();
+
+  // Apply the seed's "force unique solution" default (host YAML choice) on connect. The in-app
+  // toggle stays user-editable afterward; uniqueness only affects local puzzle generation, never
+  // Archipelago state, so it is safe to keep freely toggleable even while connected.
+  watch(
+    () => slotData.value?.unique_solution,
+    (v) => {
+      if (typeof v !== 'undefined') forceUniqueSolution.value = !!v;
+    },
+    { immediate: true },
+  );
 
   // Compute the latest item message (sent or received)
   const latestItemMessage = computed(() => {
@@ -2232,6 +2244,12 @@
 
                     <button type="button" class="btn-primary w-full" @click="randomize()">{{ $t('controls.generate') }}</button>
                   </div>
+
+                  <label class="flex items-center gap-3 group cursor-pointer">
+                    <input type="checkbox" v-model="forceUniqueSolution" class="checkbox-field" />
+                    <span class="text-sm text-neutral-200 group-hover:text-white transition-colors">{{ $t('settings.uniqueSolution') }}</span>
+                    <span class="text-2xs uppercase font-semibold tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">{{ $t('settings.betaBadge') }}</span>
+                  </label>
                 </section>
                 <!-- Game Actions -->
                 <section class="space-y-4">

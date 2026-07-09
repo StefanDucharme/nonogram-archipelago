@@ -97,6 +97,8 @@
     "sparse": "Clairsemé (20 %)",
     "dense": "Dense (70 %)",
     "puzzleGeneration": "Génération de puzzle",
+    "uniqueSolution": "Forcer une solution unique",
+    "betaBadge": "bêta",
     "gameActions": "Actions de jeu",
     "clearCurrent": "Effacer le puzzle actuel",
     "gameActionsLocked": "Les actions de jeu sont verrouillées en mode Archipelago",

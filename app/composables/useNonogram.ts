@@ -11,13 +11,23 @@ import {
   isSolved,
   makeGrid,
   randomSolution,
+  randomUniqueSolution,
 } from '~/utils/nonogram';
 import { usePersistentRef } from './usePersistence';
+import { useGridBank } from './useGridBank';
 
 export function useNonogram() {
   const rows = usePersistentRef('nonogram_rows', 5);
   const cols = usePersistentRef('nonogram_cols', 5);
   const fillRate = ref(0.45);
+  // When on, generation only accepts grids with a single, no-guess-solvable answer. Persisted so it
+  // holds in free play; in AP mode the YAML default is applied on connect but the toggle stays free.
+  const forceUniqueSolution = usePersistentRef('nonogram_unique_solution', true);
+
+  // Unique mode draws from a pre-verified bank of single-solution grids. Preload it as soon as the
+  // mode is active so picks stay synchronous inside newRandom.
+  const bank = useGridBank();
+  watch(forceUniqueSolution, (on) => { if (on) bank.ensureBankLoaded(); }, { immediate: true });
 
   // SSR-safe deterministic initial state
   const solution = usePersistentRef('nonogram_solution', makeGrid(5, 5, 0 as Cell));
@@ -61,7 +71,14 @@ export function useNonogram() {
     const clampedC = Math.max(c, minSize);
     rows.value = clampedR;
     cols.value = clampedC;
-    solution.value = randomSolution(clampedR, clampedC, fillRate.value);
+    if (forceUniqueSolution.value) {
+      // Unique mode: draw from the pre-verified bank; fall back to runtime generation for
+      // non-banked sizes (free play, non-square, > 20) or before the bank has loaded.
+      solution.value =
+        bank.pickBankGrid(clampedR, clampedC) ?? randomUniqueSolution(clampedR, clampedC, fillRate.value);
+    } else {
+      solution.value = randomSolution(clampedR, clampedC, fillRate.value);
+    }
     player.value = makeGrid(clampedR, clampedC, 'empty');
   }
 
@@ -106,6 +123,7 @@ export function useNonogram() {
     rows,
     cols,
     fillRate,
+    forceUniqueSolution,
     solution,
     player,
     rowClues,

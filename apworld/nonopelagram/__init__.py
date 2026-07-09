@@ -395,6 +395,7 @@ class NonogramWorld(World):
             "heart_cost": self.options.heart_cost.current_key,
             "heart_cost_custom": self.options.heart_cost_custom.value,
             "flawless_checks": bool(self.options.flawless_checks.value),
+            "unique_solution": bool(self.options.unique_solution.value),
             "debug_mode": bool(self.options.debug_mode.value),
             "auto_x": bool(self.options.auto_x.value),
             "grey_completed_hints": bool(self.options.grey_completed_hints.value),

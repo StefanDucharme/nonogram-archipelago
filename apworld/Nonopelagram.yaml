@@ -28,4 +28,5 @@ Nonopelagram:
   require_tier_completion: true
   difficulty_cost: progressive # free / low / normal / high / progressive
   flawless_checks: true
+  unique_solution: true        # generated puzzles have a single, no-guess solution (toggleable in-client)
   death_link: "off"            # off / on / damage

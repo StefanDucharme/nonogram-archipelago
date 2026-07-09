@@ -289,6 +289,13 @@ class FlawlessChecks(DefaultOnToggle):
     display_name = "Flawless Checks"
 
 
+class UniqueSolution(DefaultOnToggle):
+    """Force each player's generated puzzles to have a single, no-guess-solvable answer. This only
+    affects local puzzle generation and never changes the item/location pool; players can still
+    toggle it in the client. Off allows puzzles whose clues admit several valid grids."""
+    display_name = "Force Unique Solution"
+
+
 class DebugMode(Toggle):
     """Show the in-client Debug tab (slot_data simulator and debug tools) for connected players.
     Off by default; turn on only when you need to debug a seed."""
@@ -329,4 +336,5 @@ class NonogramOptions(PerGameCommonOptions):
     heart_cost: HeartCost
     heart_cost_custom: HeartCostCustom
     flawless_checks: FlawlessChecks
+    unique_solution: UniqueSolution
     debug_mode: DebugMode
