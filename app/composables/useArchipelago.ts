@@ -70,6 +70,7 @@ export function useArchipelago() {
       items.walletLevel.value,
       items.randomCellSolves.value,
       items.currentLives.value,
+      items.hintReveals.value,
     ]);
 
   // Write the full economy blob (counters + item-fed balances + replay high-water-mark) to the
@@ -92,6 +93,7 @@ export function useArchipelago() {
           walletLevel: items.walletLevel.value,
           randomCellSolves: items.randomCellSolves.value,
           currentLives: items.currentLives.value,
+          hintReveals: items.hintReveals.value,
           itemIndex: highestItemIndexProcessed,
         })
         .commit(false)
@@ -117,6 +119,7 @@ export function useArchipelago() {
       items.walletLevel.value,
       items.randomCellSolves.value,
       items.currentLives.value,
+      items.hintReveals.value,
     ] as const,
     () => {
       if (status.value !== 'connected') return;
@@ -453,6 +456,7 @@ export function useArchipelago() {
           walletLevel?: number;
           randomCellSolves?: number;
           currentLives?: number;
+          hintReveals?: number;
           itemIndex?: number;
         };
         const applyEconomy = (value: unknown, restoreMark: boolean) => {
@@ -468,6 +472,14 @@ export function useArchipelago() {
           if (typeof v.walletLevel === 'number') items.walletLevel.value = v.walletLevel;
           if (typeof v.randomCellSolves === 'number') items.randomCellSolves.value = v.randomCellSolves;
           if (typeof v.currentLives === 'number') items.currentLives.value = v.currentLives;
+          // hintReveals is a grow-only counter within a seed (reset only on a new seed, before this
+          // runs). Merge with max instead of overwriting: this both syncs the value across devices
+          // and self-heals pre-existing desyncs (a device whose local count lagged because the
+          // replay high-water-mark skipped a hint item processed elsewhere) without ever propagating
+          // a stale lower value back to the server.
+          if (typeof v.hintReveals === 'number') {
+            items.hintReveals.value = Math.max(items.hintReveals.value, v.hintReveals);
+          }
           // Only the initial connect restore touches the replay mark; a live update from another
           // device must not rewind/advance this device's processing position.
           if (restoreMark && typeof v.itemIndex === 'number') {
