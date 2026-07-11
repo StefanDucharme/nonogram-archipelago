@@ -22,7 +22,7 @@ export function useNonogram() {
   const fillRate = ref(0.45);
   // When on, generation only accepts grids with a single, no-guess-solvable answer. Persisted so it
   // holds in free play; in AP mode the YAML default is applied on connect but the toggle stays free.
-  const forceUniqueSolution = usePersistentRef('nonogram_unique_solution', true);
+  const forceUniqueSolution = usePersistentRef('nonogram_unique_solution', false);
 
   // Unique mode draws from a pre-verified bank of single-solution grids. Preload it as soon as the
   // mode is active so picks stay synchronous inside newRandom.

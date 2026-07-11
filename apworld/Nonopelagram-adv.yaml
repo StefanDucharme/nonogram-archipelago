@@ -380,9 +380,9 @@ Nonopelagram:
   unique_solution:
     # Force each player's generated puzzles to have a single, no-guess-solvable answer. This only
     # affects local puzzle generation and never changes the item/location pool; players can still
-    # toggle it in the client. Off allows puzzles whose clues admit several valid grids.
-    'false': 0
-    'true': 50
+    # toggle it in the client. Off (default) allows puzzles whose clues admit several valid grids.
+    'false': 50
+    'true': 0
 
   debug_mode:
     # Show the in-client Debug tab (slot_data simulator and debug tools) for connected players.

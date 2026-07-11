@@ -289,10 +289,10 @@ class FlawlessChecks(DefaultOnToggle):
     display_name = "Flawless Checks"
 
 
-class UniqueSolution(DefaultOnToggle):
+class UniqueSolution(Toggle):
     """Force each player's generated puzzles to have a single, no-guess-solvable answer. This only
     affects local puzzle generation and never changes the item/location pool; players can still
-    toggle it in the client. Off allows puzzles whose clues admit several valid grids."""
+    toggle it in the client. Off (default) allows puzzles whose clues admit several valid grids."""
     display_name = "Force Unique Solution"
 
 
