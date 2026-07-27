@@ -1802,7 +1802,7 @@
                   >
                     <div class="text-left">
                       <span>{{ $t('shop.walletLevelCheck', { level: items.nextWalletAction.value.level }) }}</span>
-                      <div class="text-[10px] opacity-70">{{ $t('shop.sendsCheckCap', { cap: items.WALLET_CAPS[items.nextWalletAction.value.level] }) }}</div>
+                      <div class="text-[10px] opacity-70">{{ $t('shop.sendsCheck') }}</div>
                       <div v-if="walletScout" class="text-[10px] text-accent-200/90 flex items-center gap-1">
                         <span>{{ itemIconFor(walletScout) }}</span>
                         <span class="truncate">{{ walletScout.itemName }}</span>
@@ -1865,7 +1865,7 @@
                   >
                     <div class="text-left">
                       <span>{{ $t('shop.heartContainerCheck', { index: items.nextHeartAction.value.index }) }}</span>
-                      <div class="text-[10px] opacity-70">{{ $t('shop.sendsCheckHearts', { max: items.maxLives.value }) }}</div>
+                      <div class="text-[10px] opacity-70">{{ $t('shop.sendsCheck') }}</div>
                       <div v-if="heartScout" class="text-[10px] text-accent-200/90 flex items-center gap-1">
                         <span>{{ itemIconFor(heartScout) }}</span>
                         <span class="truncate">{{ heartScout.itemName }}</span>
