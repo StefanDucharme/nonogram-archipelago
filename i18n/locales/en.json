@@ -222,5 +222,9 @@
     "obtainCoins": "Obtain {n} Coins",
     "flawlessStreak": "Flawless Streak ({n})",
     "flawlessTotal": "Flawless Total ({n})"
+  },
+  "version": {
+    "outdated": "Version {version} is available — you are running {current}. Reload before playing.",
+    "reload": "Reload"
   }
 }

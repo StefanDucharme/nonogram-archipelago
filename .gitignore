@@ -18,6 +18,9 @@ logs
 .fleet
 .idea
 
+# Generated at build time from package.json (see nuxt.config.ts)
+public/version.json
+
 # Local env files
 .env
 .env.*

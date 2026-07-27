@@ -222,5 +222,9 @@
     "obtainCoins": "Obtenir {n} pièces",
     "flawlessStreak": "Série sans faute ({n})",
     "flawlessTotal": "Total sans faute ({n})"
+  },
+  "version": {
+    "outdated": "La version {version} est disponible — tu utilises la {current}. Recharge avant de jouer.",
+    "reload": "Recharger"
   }
 }

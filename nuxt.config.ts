@@ -1,7 +1,14 @@
 import tailwindcss from '@tailwindcss/vite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf-8'));
+
+// Publish the build version as a static asset. The client is a static SPA: a tab left open across a
+// redeploy keeps running the bundle it first loaded, so it polls this file to notice it is stale
+// (see app/composables/useVersionCheck.ts). Written here because CI runs `nuxt generate` directly,
+// which would skip an npm pre-script.
+mkdirSync('./public', { recursive: true });
+writeFileSync('./public/version.json', `${JSON.stringify({ version })}\n`);
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-12-18',
