@@ -59,6 +59,24 @@
     say,
   } = useArchipelago();
 
+  // Outdated-client detection. This SPA keeps running the bundle it first loaded, so a long-lived
+  // tab can still be on old goal/check logic days after a deploy and quietly corrupt a seed. Warn
+  // continuously, and re-check right before connecting.
+  const {
+    outdated: versionOutdated,
+    deployedVersion,
+    currentVersion,
+    checkVersion,
+    startVersionWatch,
+    reloadForUpdate,
+  } = useVersionCheck();
+  startVersionWatch();
+
+  async function handleConnect() {
+    await checkVersion();
+    await connect();
+  }
+
   // Apply the seed's "force unique solution" default (host YAML choice) on connect. The in-app
   // toggle stays user-editable afterward; uniqueness only affects local puzzle generation, never
   // Archipelago state, so it is safe to keep freely toggleable even while connected.
@@ -1338,6 +1356,20 @@
 </script>
 
 <template>
+  <!-- Outdated client: this tab has been open across a deploy (see useVersionCheck) -->
+  <div
+    v-if="versionOutdated"
+    class="fixed top-0 left-0 right-0 z-[60] flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-amber-500/40 bg-amber-500/15 px-4 py-2 text-center text-xs text-amber-100 backdrop-blur"
+  >
+    <span>{{ $t('version.outdated', { version: deployedVersion, current: currentVersion }) }}</span>
+    <button
+      type="button"
+      class="rounded bg-amber-500/25 px-2 py-1 font-semibold text-amber-50 transition-colors hover:bg-amber-500/40"
+      @click="reloadForUpdate()"
+    >
+      {{ $t('version.reload') }}
+    </button>
+  </div>
   <!-- Shop purchase/claim notice (transient toast) -->
   <div
     v-if="shopNotice"
@@ -1802,7 +1834,7 @@
                   >
                     <div class="text-left">
                       <span>{{ $t('shop.walletLevelCheck', { level: items.nextWalletAction.value.level }) }}</span>
-                      <div class="text-[10px] opacity-70">{{ $t('shop.sendsCheckCap', { cap: items.WALLET_CAPS[items.nextWalletAction.value.level] }) }}</div>
+                      <div class="text-[10px] opacity-70">{{ $t('shop.sendsCheck') }}</div>
                       <div v-if="walletScout" class="text-[10px] text-accent-200/90 flex items-center gap-1">
                         <span>{{ itemIconFor(walletScout) }}</span>
                         <span class="truncate">{{ walletScout.itemName }}</span>
@@ -1865,7 +1897,7 @@
                   >
                     <div class="text-left">
                       <span>{{ $t('shop.heartContainerCheck', { index: items.nextHeartAction.value.index }) }}</span>
-                      <div class="text-[10px] opacity-70">{{ $t('shop.sendsCheckHearts', { max: items.maxLives.value }) }}</div>
+                      <div class="text-[10px] opacity-70">{{ $t('shop.sendsCheck') }}</div>
                       <div v-if="heartScout" class="text-[10px] text-accent-200/90 flex items-center gap-1">
                         <span>{{ itemIconFor(heartScout) }}</span>
                         <span class="truncate">{{ heartScout.itemName }}</span>
@@ -2310,7 +2342,7 @@
                 </div>
 
                 <div class="flex gap-3 pt-2">
-                  <button class="btn-primary flex-1" @click="connect()" :disabled="status === 'connected' || status === 'connecting'">
+                  <button class="btn-primary flex-1" @click="handleConnect()" :disabled="status === 'connected' || status === 'connecting'">
                     {{ status === 'connecting' ? $t('ap.connecting') : $t('ap.connect') }}
                   </button>
                   <button class="btn-secondary" @click="disconnect()" :disabled="status !== 'connected'">{{ $t('ap.disconnect') }}</button>

@@ -4,13 +4,13 @@ Nonopelagram Archipelago World
 A picross/nonogram puzzle game for Archipelago multiworld randomizer.
 """
 
-from typing import Dict, Any, ClassVar
+from typing import Dict, Any, ClassVar, TextIO
 from BaseClasses import Item, ItemClassification, Location, Region, Tutorial
 from worlds.AutoWorld import World, WebWorld
 from .Items import NonogramItem, item_table, item_groups
 from .Locations import NonogramLocation, location_table
 from .Options import NonogramOptions
-from .Regions import create_regions
+from .Regions import create_regions, TIERS
 
 
 # === Wallet economy — MUST stay in sync with app/composables/useArchipelagoItems.ts
@@ -404,3 +404,16 @@ class NonogramWorld(World):
             # With finite lives, mistakes must be shown in real-time (locked on the client).
             "show_mistakes": True if not unlimited_lives else bool(self.options.show_mistakes.value),
         }
+
+    def write_spoiler_header(self, spoiler_handle: TextIO) -> None:
+        """Print the puzzle counts the seed actually uses.
+
+        The generic option dump lists the raw puzzles_* values, but those only apply when
+        grid_preset is "custom": under any other preset they are ignored, so a preset seed reads as
+        if it had far more puzzles per size than it really has. grid_counts is what generation
+        actually used - preset or custom, including the empty-goal safety clamp - so state it
+        explicitly, along with the resulting goal total.
+        """
+        counts = ", ".join(f"{size}: {self.grid_counts[size]}" for size in TIERS)
+        spoiler_handle.write(f"{'Puzzle Counts in Play:':<33}{counts}\n")
+        spoiler_handle.write(f"{'Puzzles Needed for Goal:':<33}{sum(self.grid_counts.values())}\n")

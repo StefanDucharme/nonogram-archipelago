@@ -82,7 +82,7 @@ class GridPreset(Choice):
 
 class Puzzles5x5(Range):
     """Number of 5x5 puzzles toward the goal (only used when grid_preset is custom)."""
-    display_name = "5x5 Puzzles (custom)"
+    display_name = "5x5 Puzzles (custom preset)"
     range_start = 0
     range_end = 100
     default = 10
@@ -90,7 +90,7 @@ class Puzzles5x5(Range):
 
 class Puzzles10x10(Range):
     """Number of 10x10 puzzles toward the goal (only used when grid_preset is custom)."""
-    display_name = "10x10 Puzzles (custom)"
+    display_name = "10x10 Puzzles (custom preset)"
     range_start = 0
     range_end = 100
     default = 10
@@ -98,7 +98,7 @@ class Puzzles10x10(Range):
 
 class Puzzles15x15(Range):
     """Number of 15x15 puzzles toward the goal (only used when grid_preset is custom)."""
-    display_name = "15x15 Puzzles (custom)"
+    display_name = "15x15 Puzzles (custom preset)"
     range_start = 0
     range_end = 100
     default = 10
@@ -106,7 +106,7 @@ class Puzzles15x15(Range):
 
 class Puzzles20x20(Range):
     """Number of 20x20 puzzles toward the goal (only used when grid_preset is custom)."""
-    display_name = "20x20 Puzzles (custom)"
+    display_name = "20x20 Puzzles (custom preset)"
     range_start = 0
     range_end = 100
     default = 10
