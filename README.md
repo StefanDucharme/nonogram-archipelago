@@ -2,13 +2,9 @@
 
 A web-based Nonogram (Picross) puzzle game with [Archipelago](https://archipelago.gg/) multiworld randomizer integration.
 
-This project is a fork and continuation of the original [Nonogram Archipelago](https://github.com/StefanDucharme/nonogram-archipelago) by **Stefan Ducharme**, expanded into a full, economy-driven multiworld experience.
-
 ## Play online
 
-**[Play Nonopelagram in your browser](https://serial-developer.github.io/nonogram-archipelago/)** -- no install needed.
-
-(Original by Stefan Ducharme: https://stefanducharme.github.io/nonogram-archipelago/)
+**[Play Nonopelagram in your browser](https://stefanducharme.github.io/nonogram-archipelago/)** -- no install needed.
 
 ## Features
 
@@ -30,13 +26,13 @@ This project is a fork and continuation of the original [Nonogram Archipelago](h
 
 ## Setting up an Archipelago game
 
-You only need this section to **generate or host** a multiworld. To play in an existing room, jump straight to [Connect](#4-connect) and use the [online client](https://serial-developer.github.io/nonogram-archipelago/).
+You only need this section to **generate or host** a multiworld. To play in an existing room, jump straight to [Connect](#4-connect) and use the [online client](https://stefanducharme.github.io/nonogram-archipelago/).
 
 **Requirement:** [Archipelago](https://github.com/ArchipelagoMW/Archipelago/releases) 0.6.7 or newer.
 
 ### 1. Install the APWorld
 
-1. Download `nonopelagram.apworld` from the [latest release](https://github.com/Serial-Developer/nonogram-archipelago/releases) (or build it from source -- see [Local development](#local-development)).
+1. Download `nonopelagram.apworld` from the [latest release](https://github.com/StefanDucharme/nonogram-archipelago/releases/latest) (or build it from source -- see [Local development](#local-development)).
 2. Open `ArchipelagoLauncher.exe`, click **Install APWorld**, and select the file.
 3. Restart the Launcher if prompted.
 
@@ -70,7 +66,7 @@ Place your YAML in the Archipelago `Players/` folder.
 
 ### 4. Connect
 
-Open the **[online client](https://serial-developer.github.io/nonogram-archipelago/)**, go to the **Archipelago** tab, and enter:
+Open the **[online client](https://stefanducharme.github.io/nonogram-archipelago/)**, go to the **Archipelago** tab, and enter:
 
 - **Host** -- e.g. `archipelago.gg` or `localhost`
 - **Port** -- your room's port
@@ -173,7 +169,7 @@ Your site will then be live at `https://<your-account>.github.io/nonogram-archip
 
 ## Local development
 
-Only needed to work on the client or build the APWorld from source -- **playing does not require any of this** (use the [online client](https://serial-developer.github.io/nonogram-archipelago/)).
+Only needed to work on the client or build the APWorld from source -- **playing does not require any of this** (use the [online client](https://stefanducharme.github.io/nonogram-archipelago/)).
 
 **Prerequisites:** [Node.js](https://nodejs.org/) v20+ and npm. ([Archipelago](https://github.com/ArchipelagoMW/Archipelago/releases) 0.6.7+ is only needed to generate or host games.)
 
