@@ -1150,6 +1150,13 @@ export function useArchipelagoItems() {
       { diff: '20x20', base: AP_LOCATIONS.PUZZLE_20X20_BASE },
     ];
 
+    const seenPuzzleIndices: Record<'5x5' | '10x10' | '15x15' | '20x20', Set<number>> = {
+      '5x5': new Set(),
+      '10x10': new Set(),
+      '15x15': new Set(),
+      '20x20': new Set(),
+    };
+
     for (const id of checkedIds) {
       if (id === AP_LOCATIONS.OBTAIN_50_COINS) coinMilestones[50] = true;
       else if (id === AP_LOCATIONS.OBTAIN_100_COINS) coinMilestones[100] = true;
@@ -1158,16 +1165,29 @@ export function useArchipelagoItems() {
       else if (id === AP_LOCATIONS.FIRST_LINE_15X15) firstLineCompleted['15x15'] = true;
       else if (id === AP_LOCATIONS.FIRST_LINE_20X20) firstLineCompleted['20x20'] = true;
       else {
-        // Puzzle completion checks are sequential (base+1 .. base+count); the count
-        // completed for a difficulty is the highest n that appears in the checked set.
+        // Collect the raw completion indices; the counts are derived below. Taking the highest
+        // index here would be wrong: the server also marks locations checked without the player
+        // ever playing them (another player's !collect, a !release, an admin /send), so a single
+        // gifted index would pass for a whole completed series.
         for (const { diff, base } of puzzleBases) {
           const n = id - base;
           if (n >= 1 && n <= PUZZLE_COUNTS[diff]) {
-            if (n > puzzlesCompleted[diff]) puzzlesCompleted[diff] = n;
+            seenPuzzleIndices[diff].add(n);
             break;
           }
         }
       }
+    }
+
+    // Derive each count as the longest run starting at 1. Real play always produces a contiguous
+    // 1..n range, while an externally granted check shows up as an isolated index, so this floor
+    // cannot be inflated from the outside. It is only a floor: applyEconomy raises it right after
+    // from the server-side economy blob, which is written by this client alone and therefore knows
+    // the true count even when a send went missing mid-series.
+    for (const { diff } of puzzleBases) {
+      let n = 0;
+      while (seenPuzzleIndices[diff].has(n + 1)) n++;
+      puzzlesCompleted[diff] = n;
     }
 
     // Rebuild current difficulty from the UNLOCK checks (server-authoritative

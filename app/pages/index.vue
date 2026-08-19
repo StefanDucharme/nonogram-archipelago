@@ -2364,13 +2364,16 @@
               </div>
 
               <!-- Goal panel (collapsible: total in the summary, per-size detail inside) -->
-              <details class="rounded-sm border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+              <details class="group rounded-sm border border-amber-500/30 bg-amber-500/10 px-3 py-2">
                 <summary class="cursor-pointer list-none">
                   <div class="text-[11px] uppercase tracking-wider text-amber-300/70">{{ $t('common.goal') }}</div>
                   <div class="mt-0.5 flex items-center gap-2 text-sm text-amber-200">
                     <span>&#127919;</span>
                     <span>{{ $t('board.complete') }}<span class="font-semibold">{{ items.goalTarget.value }}</span> {{ $t('goals.gridsWord') }}</span>
                     <span class="ml-auto text-xs" :class="goalCompleted ? 'text-lime-400' : 'text-amber-300/80'">{{ goalCompleted ? '&#10003; ' + $t('goals.reached') : items.goalProgress.value + ' / ' + items.goalTarget.value }}</span>
+                    <svg class="h-3.5 w-3.5 shrink-0 text-amber-300/70 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fill-rule="evenodd" d="M5.22 7.22a.75.75 0 0 1 1.06 0L10 10.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 8.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+                    </svg>
                   </div>
                 </summary>
                 <div class="mt-2 space-y-1 border-t border-amber-500/20 pt-2">
@@ -2389,11 +2392,17 @@
               <details
                 v-for="sec in items.checkSections.value"
                 :key="sec.key"
-                class="rounded-sm border border-neutral-700/50 bg-neutral-900/30"
+                class="group rounded-sm border border-neutral-700/50 bg-neutral-900/30"
               >
-                <summary class="flex cursor-pointer items-center justify-between px-2 py-1.5 text-xs font-semibold text-neutral-200">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-2 py-1.5 text-xs font-semibold text-neutral-200">
                   <span>{{ sec.label }}</span>
-                  <span :class="sec.done === sec.total ? 'text-lime-400' : 'text-neutral-400'">{{ $t('goals.completedCount', { done: sec.done, total: sec.total }) }}</span>
+                  <span class="flex items-center gap-1.5">
+                    <span :class="sec.done === sec.total ? 'text-lime-400' : 'text-neutral-400'">{{ $t('goals.completedCount', { done: sec.done, total: sec.total }) }}</span>
+                    <!-- Expand affordance: players did not realise these sections were collapsible -->
+                    <svg class="h-3.5 w-3.5 shrink-0 text-neutral-500 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fill-rule="evenodd" d="M5.22 7.22a.75.75 0 0 1 1.06 0L10 10.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 8.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+                    </svg>
+                  </span>
                 </summary>
                 <div class="space-y-1 px-2 pb-2">
                   <div
