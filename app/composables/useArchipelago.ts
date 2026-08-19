@@ -71,6 +71,7 @@ export function useArchipelago() {
       items.randomCellSolves.value,
       items.currentLives.value,
       items.hintReveals.value,
+      JSON.stringify(items.puzzlesCompleted),
     ]);
 
   // Write the full economy blob (counters + item-fed balances + replay high-water-mark) to the
@@ -94,6 +95,10 @@ export function useArchipelago() {
           randomCellSolves: items.randomCellSolves.value,
           currentLives: items.currentLives.value,
           hintReveals: items.hintReveals.value,
+          // Puzzle counts as this client actually earned them. checked_locations cannot be trusted
+          // for this: the server also marks locations checked without the player (another player's
+          // !collect, a !release, an admin /send). Only this client writes here.
+          puzzles: { ...items.puzzlesCompleted },
           itemIndex: highestItemIndexProcessed,
         })
         .commit(false)
@@ -120,6 +125,7 @@ export function useArchipelago() {
       items.randomCellSolves.value,
       items.currentLives.value,
       items.hintReveals.value,
+      JSON.stringify(items.puzzlesCompleted),
     ] as const,
     () => {
       if (status.value !== 'connected') return;
@@ -457,6 +463,7 @@ export function useArchipelago() {
           randomCellSolves?: number;
           currentLives?: number;
           hintReveals?: number;
+          puzzles?: Partial<Record<'5x5' | '10x10' | '15x15' | '20x20', number>>;
           itemIndex?: number;
         };
         const applyEconomy = (value: unknown, restoreMark: boolean) => {
@@ -479,6 +486,20 @@ export function useArchipelago() {
           // a stale lower value back to the server.
           if (typeof v.hintReveals === 'number') {
             items.hintReveals.value = Math.max(items.hintReveals.value, v.hintReveals);
+          }
+          // Puzzle counts. The blob is written by this client alone, so it is the only trustworthy
+          // record of what the player actually cleared, and on the initial connect restore it wins
+          // outright over the floor reconcile derived from checked_locations. That floor cannot be
+          // trusted upward: a gifted check landing right after the real run (another player's
+          // !collect, a !release) extends the contiguous run and would silently inflate the count.
+          // Live updates from another device only ever grow the value, so a racing write can't
+          // rewind this device.
+          if (v.puzzles && typeof v.puzzles === 'object') {
+            for (const diff of ['5x5', '10x10', '15x15', '20x20'] as const) {
+              const n = v.puzzles[diff];
+              if (typeof n !== 'number' || n < 0) continue;
+              items.puzzlesCompleted[diff] = restoreMark ? n : Math.max(items.puzzlesCompleted[diff], n);
+            }
           }
           // Only the initial connect restore touches the replay mark; a live update from another
           // device must not rewind/advance this device's processing position.
