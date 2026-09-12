@@ -1155,6 +1155,42 @@
     }
   });
 
+  /** Compact connection pill for the mobile top bar.
+   *
+   * Phones never show the footer indicator - it sits below the fold, and some browsers hide it
+   * behind their own chrome - so a dropped connection went unnoticed and players kept solving
+   * puzzles whose checks were never sent. This weights the states differently from the footer:
+   * connected stays quiet, while a lost connection is red and pulsing so it is caught right away.
+   */
+  const mobileStatusMeta = computed(() => {
+    switch (status.value) {
+      case 'connected':
+        return {
+          label: t('status.connected'),
+          dot: 'bg-lime-400',
+          pill: 'border-lime-500/40 bg-lime-500/10 text-lime-300',
+        };
+      case 'connecting':
+        return {
+          label: t('status.connecting'),
+          dot: 'bg-amber-400 animate-pulse',
+          pill: 'border-amber-500/40 bg-amber-500/10 text-amber-200',
+        };
+      case 'error':
+        return {
+          label: t('status.error'),
+          dot: 'bg-red-400 animate-pulse',
+          pill: 'border-red-500/60 bg-red-500/20 text-red-200',
+        };
+      default:
+        return {
+          label: t('status.disconnected'),
+          dot: 'bg-red-400 animate-pulse',
+          pill: 'border-red-500/60 bg-red-500/20 text-red-200',
+        };
+    }
+  });
+
   function randomize(afterClear = false, resetLives = true) {
     // In archipelago mode, use the current difficulty setting
     const size = items.archipelagoMode.value ? items.currentDifficulty.value : rows.value;
@@ -1415,6 +1451,24 @@
         </svg>
       </button>
       <span class="text-sm font-semibold text-neutral-100">{{ mobileTabLabel }}</span>
+
+      <!--
+        Archipelago connection state, mobile only. The footer indicator is off-screen on phones, so
+        players stayed on a dropped connection without realising it. Only shown in Archipelago mode
+        (free play has no connection to report) and hidden on the Archipelago tab itself, where the
+        connect controls already say it. Tapping jumps straight to that tab to reconnect.
+      -->
+      <button
+        v-if="items.archipelagoMode.value && activeMobileTab !== 'archipelago'"
+        type="button"
+        class="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors"
+        :class="mobileStatusMeta.pill"
+        :aria-label="`${$t('tabs.archipelago')}: ${mobileStatusMeta.label}`"
+        @click="selectMobileTab('archipelago')"
+      >
+        <span class="h-2 w-2 shrink-0 rounded-full" :class="mobileStatusMeta.dot"></span>
+        <span>{{ mobileStatusMeta.label }}</span>
+      </button>
     </div>
 
     <!-- Mobile navigation drawer -->
