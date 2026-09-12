@@ -21,7 +21,7 @@
     mobileCellMode?: 'fill' | 'x' | 'maybe'; // For mobile mode toggle
     cursorRow?: number; // Mobile D-pad cursor cell (-1 to hide)
     cursorCol?: number;
-    highlightLines?: boolean; // Highlight cursor row/column + clues
+    highlightLines?: boolean; // Highlight active row/column + clues (D-pad cursor and mouse hover)
     reservedBottom?: number; // px reserved below the board (e.g. mobile D-pad) so the grid still fits
     disabled?: boolean; // Disable interactions when puzzle is failed or completed
   }>();
@@ -91,9 +91,22 @@
 
   const colDepth = computed(() => Math.max(1, ...props.colClues.map((c) => c.length)));
   const rowDepth = computed(() => Math.max(1, ...props.rowClues.map((r) => r.length)));
-  const xhairOn = computed(
-    () => (props.highlightLines ?? true) && (props.cursorRow ?? -1) >= 0 && (props.cursorCol ?? -1) >= 0,
-  );
+  // Pointer hover crosshair. Same idea as the mobile D-pad cursor: on large grids it is hard to
+  // tell which row and column a cell belongs to. Gated on a real hover-capable pointer so touch
+  // devices, where a stray mouse event would leave the highlight stuck, keep the cursor behaviour.
+  const hoverRow = ref(-1);
+  const hoverCol = ref(-1);
+  const hoverCapable = ref(false);
+  onMounted(() => {
+    hoverCapable.value = typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches;
+  });
+
+  // The hovered cell wins while the pointer is over the grid; otherwise fall back to the D-pad
+  // cursor, so both input methods drive the exact same highlight.
+  const xRow = computed(() => (hoverRow.value >= 0 ? hoverRow.value : (props.cursorRow ?? -1)));
+  const xCol = computed(() => (hoverCol.value >= 0 ? hoverCol.value : (props.cursorCol ?? -1)));
+
+  const xhairOn = computed(() => (props.highlightLines ?? true) && xRow.value >= 0 && xCol.value >= 0);
 
   // No hard floor: the board always fits the viewport. Cells shrink as needed so the whole grid
   // (cells + clues, both axes) stays visible without scrolling, whatever the grid size.
@@ -195,16 +208,35 @@
     const g = gridRef.value.getBoundingClientRect();
     const root = rootEl.value.getBoundingClientRect();
     const cs = cellSize.value;
-    const cx = g.left - root.left + (props.cursorCol ?? 0) * cs;
-    const cy = g.top - root.top + (props.cursorRow ?? 0) * cs;
+    const cx = g.left - root.left + Math.max(0, xCol.value) * cs;
+    const cy = g.top - root.top + Math.max(0, xRow.value) * cs;
     xhairV.value = { left: `${cx}px`, top: '0px', width: `${cs}px`, height: `${root.height}px` };
     xhairH.value = { left: '0px', top: `${cy}px`, width: `${root.width}px`, height: `${cs}px` };
   }
   watch(
-    [() => props.cursorRow, () => props.cursorCol, cellSize, xhairOn, () => props.rows, () => props.cols],
+    [xRow, xCol, cellSize, xhairOn, () => props.rows, () => props.cols],
     () => void nextTick(measureXhair),
     { immediate: true },
   );
+
+  // Track the hovered cell from the grid container rather than per-cell listeners: one handler
+  // instead of rows*cols of them, which matters on a 50x50 board.
+  function onGridMouseMove(e: MouseEvent) {
+    if (!hoverCapable.value) return;
+    const grid = gridRef.value;
+    if (!grid) return;
+    const rect = grid.getBoundingClientRect();
+    const r = Math.floor((e.clientY - rect.top) / cellSize.value);
+    const c = Math.floor((e.clientX - rect.left) / cellSize.value);
+    const inside = r >= 0 && r < props.rows && c >= 0 && c < props.cols;
+    hoverRow.value = inside ? r : -1;
+    hoverCol.value = inside ? c : -1;
+  }
+
+  function onGridMouseLeave() {
+    hoverRow.value = -1;
+    hoverCol.value = -1;
+  }
 
   function onTouchMove(e: TouchEvent) {
     if (!props.dragPainting || !isDragging.value || !dragMode.value) return;
@@ -414,7 +446,7 @@
                   }
                   return 'clue-text-default';
                 })(),
-                { 'xhair-clue': xhairOn && c - 1 === cursorCol },
+                { 'xhair-clue': xhairOn && c - 1 === xCol },
               ]"
             >
               <!-- show from bottom, hide 0 clues -->
@@ -462,7 +494,7 @@
                   }
                   return 'clue-text-default';
                 })(),
-                { 'xhair-clue': xhairOn && r - 1 === cursorRow },
+                { 'xhair-clue': xhairOn && r - 1 === xRow },
               ]"
             >
               <!-- show from right, hide 0 clues -->
@@ -540,6 +572,8 @@
               gridTemplateRows: `repeat(${rows}, ${cellSize}px)`,
             }"
             @contextmenu.prevent
+            @mousemove="onGridMouseMove"
+            @mouseleave="onGridMouseLeave"
             @touchmove="onTouchMove"
             @touchend="onTouchEnd"
             @touchcancel="onTouchEnd"

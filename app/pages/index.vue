@@ -196,7 +196,7 @@
   const checkPulse = ref(false);
   const autoX = ref(true);
   const greyCompletedHints = ref(true);
-  const highlightLines = ref(true); // Highlight cursor row/column + clues (D-pad)
+  const highlightLines = ref(true); // Highlight active row/column + clues (D-pad cursor and mouse hover)
   const showDebugGrid = ref(false);
   // Debug: simulate Archipelago slot_data options without generating a seed
   const simAutoX = ref(true);
